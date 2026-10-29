@@ -987,3 +987,61 @@ table.dt.dt-hs .row-actions .btn.sm { padding: 6px 12px; font-size: 12.5px; font
 }
 .empty-hint.ok { color: var(--ok); }
 
+/* ==== 场景详情 / 回归报告 ==== */
+/* 可点击行（进入详情 / 展开明细）：左侧竖条提示可点 */
+table.dt tbody tr.row-link td:first-child { position: relative; }
+table.dt tbody tr.row-link td:first-child::before {
+  content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px;
+  border-radius: 2px; background: transparent;
+}
+table.dt tbody tr.row-link:hover td:first-child::before { background: var(--accent); }
+table.dt tbody tr.row-bad td:first-child::before { background: var(--bad); opacity: .8; }
+
+/* 展开的明细行：整行一块浅色面板 */
+table.dt tbody tr.mcp-exp-row { cursor: default; }
+table.dt tbody tr.mcp-exp-row:hover { background: transparent; }
+table.dt tbody tr.mcp-exp-row > td {
+  padding: 12px 14px; background: var(--bg-sunken);
+  border-bottom: 1px solid var(--border);
+}
+table.dt tbody tr.mcp-exp-row[hidden] { display: none !important; }
+
+.mcp-case { display: flex; flex-direction: column; gap: 8px; }
+.mcp-sub { font-size: 11px; color: var(--text-faint); letter-spacing: .2px; }
+.mcp-kv {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 6px 16px; padding: 9px 11px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg-soft);
+}
+.mcp-kv > div { display: flex; gap: 8px; font-size: 11.5px; min-width: 0; }
+.mcp-kv span { color: var(--text-faint); flex: 0 0 74px; }
+.mcp-kv b { font-weight: 600; word-break: break-all; }
+.mcp-case-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 980px) { .mcp-case-cols { grid-template-columns: 1fr; } }
+.mcp-asserts { margin: 0; padding-left: 15px; font-size: 11.5px; display: flex; flex-direction: column; gap: 5px; }
+.mcp-asserts code, .mcp-assert code { font-family: var(--mono); font-size: 11px; word-break: break-all; }
+.mcp-asserts em { display: block; font-style: normal; color: var(--text-faint); font-size: 11px; }
+.mcp-assert { font-size: 11.5px; padding: 3px 0; }
+.mcp-assert.ok { color: var(--ok); }
+.mcp-assert.bad { color: var(--bad); }
+.mcp-assert em { font-style: normal; color: var(--text-faint); margin-left: 6px; font-size: 11px; }
+.mcp-varline {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 0 13px 10px; font-size: 11.5px; color: var(--text-faint);
+}
+.mcp-filters { display: flex; gap: 8px; padding: 9px 13px 4px; }
+
+/* 回归报告概览卡 */
+.mcp-report-head {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 8px; padding: 12px 13px 4px;
+}
+.mcp-rpt {
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 11px; background: var(--bg-sunken);
+}
+.mcp-rpt span { display: block; font-size: 10.5px; color: var(--text-faint); margin-bottom: 3px; }
+.mcp-rpt b { font-size: 13px; font-weight: 650; word-break: break-all; }
+.mcp-rpt.ok b { color: var(--ok); }
+.mcp-rpt.bad b { color: var(--bad); }
+

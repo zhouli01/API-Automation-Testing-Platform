@@ -274,6 +274,12 @@ let _mcpParamPage = 1;
 const MCP_PARAM_PAGE_SIZE = 10;
 let _mcpScenSum = null;          // 场景级用例概览
 let _mcpDiffData = null;         // 最近一次 diff 结果
+let _mcpRunPage = 1;             // 运行记录当前页
+const MCP_RUN_PAGE_SIZE = 10;    // 运行记录每页条数
+let _mcpDetailFrom = 'scenarios';// 详情视图返回时回到哪个子菜单
+let _mcpReport = null;           // 回归报告 {data, filter, page}
+const MCP_REPORT_PAGE_SIZE = 20; // 报告内用例明细每页条数
+let _mcpScenCases = null;        // 当前场景详情用例（展开行用）
 
 function setMcpMenuOpen(open) {
   if ($('#mcpSubmenu')) $('#mcpSubmenu').hidden = !open;
@@ -296,9 +302,36 @@ function setMcpPanel(sub) {
     const el = $('#mcpPanel-' + k);
     if (el) el.hidden = k !== name;
   });
+  if ($('#mcpPanel-detail')) $('#mcpPanel-detail').hidden = true;  // 详情是覆盖视图
   if ($('#mcpTitle')) $('#mcpTitle').textContent = MCP_PANELS[name][0];
   if ($('#mcpPageDesc')) $('#mcpPageDesc').textContent = MCP_PANELS[name][1];
   loadMcpPanel(name);
+}
+
+/* ---------- 详情视图（场景详情 / 回归报告共用） ---------- */
+function openMcpDetail(opts) {
+  _mcpDetailFrom = opts.from || state.mcpSub || 'scenarios';
+  Object.keys(MCP_PANELS).forEach(k => {
+    const el = $('#mcpPanel-' + k);
+    if (el) el.hidden = true;
+  });
+  const detail = $('#mcpPanel-detail');
+  if (!detail) return;
+  detail.hidden = false;
+  if ($('#mcpDetailTitle')) $('#mcpDetailTitle').textContent = opts.title || '详情';
+  if ($('#mcpDetailSub')) $('#mcpDetailSub').textContent = opts.sub || '';
+  if ($('#mcpDetailActions')) $('#mcpDetailActions').innerHTML = opts.actions || '';
+  if ($('#mcpDetailBody')) $('#mcpDetailBody').innerHTML = opts.body || '';
+  if ($('#mcpTitle')) $('#mcpTitle').textContent = opts.title || '详情';
+  if ($('#mcpPageDesc')) $('#mcpPageDesc').textContent = opts.pageDesc || '';
+}
+
+function closeMcpDetail() {
+  const detail = $('#mcpPanel-detail');
+  if (detail) detail.hidden = true;
+  _mcpReport = null;
+  _mcpScenCases = null;
+  setMcpPanel(_mcpDetailFrom || 'scenarios');
 }
 
 /* 切到哪个子页面就加载哪个子页面的数据（以前只有契约页会加载，其余 4 页是空白占位） */
@@ -306,7 +339,7 @@ function loadMcpPanel(name) {
   if (name === 'contract') { loadMcpStatus(); loadMcpTools(); return; }
   if (name === 'params') { loadMcpSummary().then(s => s && renderMcpParams(s.params)); return; }
   if (name === 'scenarios') { loadMcpSummary().then(s => s && renderMcpScen(s.scenarios)); return; }
-  if (name === 'run') { loadMcpSummary().then(() => loadMcpRuns()); return; }
+  if (name === 'run') { loadMcpSummary().then(() => loadMcpRuns(1)); return; }
   if (name === 'diff') { loadMcpDiff(); }
 }
 
@@ -423,7 +456,7 @@ function renderMcpParams(sum) {
     '</tbody></table>' + mcpPager('mpp', _mcpParamPage, pages, total, rows.length);
 }
 
-/* ---------- ③ 场景级用例（4b） ---------- */
+/* ---------- ③ 场景级用例（4b）：链路列表 → 点击进入场景详情（该场景下全部用例） ---------- */
 function renderMcpScen(sum) {
   const box = $('#mcpScenTable');
   if (!box) return;
@@ -436,32 +469,132 @@ function renderMcpScen(sum) {
     `共 ${sum.chains.length} 条链路 / ${sum.stepCount} 个步骤 ｜ 生成于 ${sum.mtime} ｜ ${sum.file}`;
   box.innerHTML =
     '<table class="dt"><thead><tr>' +
-    '<th style="width:250px">链路</th><th style="width:250px">说明</th><th style="width:70px">步骤</th><th>步骤链（tool → tool）</th>' +
+    '<th style="width:56px">#</th><th style="width:250px">场景链路</th><th style="width:240px">说明</th>' +
+    '<th style="width:64px">步骤</th><th>步骤链（tool → tool）</th><th style="width:104px">用例</th>' +
     '</tr></thead><tbody>' +
-    sum.chains.map(c =>
-      '<tr><td><b>' + esc(c.name) + '</b></td>' +
+    sum.chains.map((c, ci) =>
+      '<tr class="row-link" data-scen="' + ci + '" title="点击查看该场景下的全部测试用例">' +
+      '<td class="ta-c">' + (ci + 1) + '</td>' +
+      '<td><b>' + esc(c.name) + '</b></td>' +
       '<td style="opacity:.75">' + esc(c.desc || '—') + '</td>' +
       '<td class="ta-c">' + c.stepCount + '</td>' +
       '<td>' + c.steps.map((s, i) =>
         (i ? ' <span style="opacity:.4">→</span> ' : '') +
-        '<span class="env-chip">' + esc(s.tool) + '</span>').join('') + '</td></tr>'
+        '<span class="env-chip">' + esc(s.tool) + '</span>').join('') + '</td>' +
+      '<td class="ta-c"><button class="btn ghost sm" data-scen="' + ci + '">详情 →</button></td></tr>'
     ).join('') +
     '</tbody></table>' +
-    '<div class="mcp-steps">' + sum.chains.map(c =>
-      '<div class="mcp-step-group"><div class="msg-head">' + esc(c.name) + '</div>' +
-      c.steps.map((s, i) => {
-        const ex = Object.keys(s.extract);
-        return '<div class="mcp-step"><span class="num">' + (i + 1) + '</span>' +
-          '<b>' + esc(s.tool) + '</b>' +
-          (Object.keys(s.args).length ? '<em>参数 ' + esc(JSON.stringify(s.args)) + '</em>' : '<em>无参</em>') +
-          (ex.length ? '<em class="ok">提取 ' + esc(ex.map(k => k + ' ← ' + s.extract[k]).join('；')) + '</em>' : '') +
-          (s.desc ? '<em>' + esc(s.desc) + '</em>' : '') +
-          '</div>';
-      }).join('') + '</div>').join('') + '</div>';
+    '<div class="mcp-pager"><span>点击任一行进入场景详情，可查看该场景下的全部测试用例（请求 / 断言 / 变量传递）</span></div>';
 }
 
-/* ---------- ④ 一键回归：结果 + 最近运行记录 ---------- */
-async function loadMcpRuns() {
+function prettyJson(s) {
+  try { return JSON.stringify(JSON.parse(s), null, 2); } catch (e) { return String(s || ''); }
+}
+
+function shortText(s, n) {
+  const t = String(s || '').replace(/\s+/g, ' ').trim();
+  return t.length > n ? t.slice(0, n) + '…' : t;
+}
+
+async function openMcpScenDetail(index) {
+  openMcpDetail({
+    from: 'scenarios',
+    title: '场景详情',
+    sub: '正在加载该场景下的测试用例…',
+    pageDesc: '该场景链路包含的全部可执行测试用例',
+    body: '<div class="empty-hint">正在加载…</div>',
+  });
+  try {
+    const d = await api('/api/mcp/scenarios/detail?index=' + encodeURIComponent(index));
+    renderMcpScenDetail(d);
+  } catch (e) {
+    if ($('#mcpDetailSub')) $('#mcpDetailSub').textContent = '加载失败';
+    if ($('#mcpDetailBody')) $('#mcpDetailBody').innerHTML =
+      '<div class="empty-hint">加载失败：' + esc(e.message) + '</div>';
+  }
+}
+
+function mcpCaseAssertList(asserts) {
+  if (!asserts || !asserts.length) return '<div class="empty-hint">无自定义断言</div>';
+  return '<ul class="mcp-asserts">' + asserts.map(a =>
+    '<li><code>' + esc([a.type, a.path, a.op].filter(Boolean).join(' ')) +
+    (a.value !== undefined ? ' = ' + esc(JSON.stringify(a.value)) : '') + '</code>' +
+    (a.desc ? '<em>' + esc(a.desc) + '</em>' : '') + '</li>').join('') + '</ul>';
+}
+
+/* 场景详情：一条链路 = 多条按顺序执行的用例 */
+function renderMcpScenDetail(d) {
+  const sc = d.scenario || {};
+  const cases = d.cases || [];
+  _mcpScenCases = { scenario: sc, cases };
+  const tools = Array.from(new Set(cases.map(c => c.tool).filter(Boolean)));
+  const varLinks = cases.reduce((arr, c) =>
+    arr.concat(Object.keys(c.extract || {}).map(k => k + ' ← ' + c.extract[k])), []);
+  if ($('#mcpDetailTitle')) $('#mcpDetailTitle').textContent = sc.name || '场景详情';
+  if ($('#mcpDetailSub')) $('#mcpDetailSub').textContent =
+    (sc.desc ? sc.desc + ' ｜ ' : '') + `共 ${cases.length} 条用例 / ${tools.length} 个工具`;
+  if ($('#mcpPageDesc')) $('#mcpPageDesc').textContent = '该场景链路包含的全部可执行测试用例';
+  if ($('#mcpDetailActions')) $('#mcpDetailActions').innerHTML =
+    '<button class="btn ghost sm" id="btnMcpScenExport">导出用例 JSON</button>';
+  const body = $('#mcpDetailBody');
+  if (!body) return;
+  body.innerHTML =
+    '<div class="mcp-stats">' + mcpChips([
+      ['场景步骤', cases.length],
+      ['涉及工具', tools.length],
+      ['传递变量', varLinks.length],
+      ['网关', d.gateway || '—'],
+    ]) + '</div>' +
+    (varLinks.length
+      ? '<div class="mcp-varline">变量传递：' + varLinks.map(v =>
+        '<span class="env-chip ok">' + esc(v) + '</span>').join(' ') + '</div>'
+      : '') +
+    '<div class="table-wrap">' +
+    '<table class="dt"><thead><tr>' +
+    '<th style="width:50px">#</th><th style="width:260px">用例名称</th><th style="width:230px">工具</th>' +
+    '<th style="width:210px">参数</th><th style="width:130px">提取变量</th><th>说明</th>' +
+    '</tr></thead><tbody>' +
+    cases.map((c, i) => {
+      const argKeys = Object.keys(c.args || {});
+      const exKeys = Object.keys(c.extract || {});
+      return '<tr class="row-link" data-scase="' + i + '" title="点击展开该用例的请求与断言">' +
+        '<td class="ta-c">' + (i + 1) + '</td>' +
+        '<td><b>' + esc(c.name) + '</b></td>' +
+        '<td><code>' + esc(c.tool) + '</code></td>' +
+        '<td>' + (argKeys.length ? argKeys.map(k => '<span class="env-chip">' +
+          esc(k) + '=' + esc(typeof c.args[k] === 'object' ? JSON.stringify(c.args[k]) : c.args[k]) +
+          '</span>').join(' ') : '<span style="opacity:.5">无参</span>') + '</td>' +
+        '<td>' + (exKeys.length ? exKeys.map(k => '<span class="env-chip ok">' +
+          esc(k) + '</span>').join(' ') : '<span style="opacity:.5">—</span>') + '</td>' +
+        '<td style="opacity:.75">' + esc(c.desc || '—') + '</td></tr>' +
+        '<tr class="mcp-exp-row" id="mcpScase-' + i + '" hidden><td colspan="6">' +
+        mcpScenCaseHtml(c) + '</td></tr>';
+    }).join('') +
+    '</tbody></table></div>' +
+    '<div class="mcp-pager"><span>点击任一行展开 JSON-RPC 请求、请求头与断言</span></div>';
+}
+
+function mcpScenCaseHtml(c) {
+  const kv = [
+    ['用例 ID', c.caseId], ['所属模块', c.module], ['标签', (c.tags || []).join(' / ') || '—'],
+    ['请求', c.method + ' ' + c.url],
+  ];
+  return '<div class="mcp-case">' +
+    '<div class="mcp-kv">' + kv.map(([k, v]) =>
+      '<div><span>' + esc(k) + '</span><b>' + esc(v) + '</b></div>').join('') + '</div>' +
+    '<div class="mcp-case-cols">' +
+    '<div><div class="mcp-sub">JSON-RPC 请求体</div><pre class="mcp-out sm">' +
+    esc(prettyJson(c.body)) + '</pre></div>' +
+    '<div><div class="mcp-sub">断言（' + (c.asserts || []).length + ' 条）</div>' +
+    mcpCaseAssertList(c.asserts) + '</div>' +
+    '</div>' +
+    '<div class="mcp-sub">请求头</div><pre class="mcp-out sm">' +
+    esc((c.headers || []).map(h => h.key + ': ' + h.value).join('\n') || '（无）') + '</pre>' +
+    '</div>';
+}
+
+/* ---------- ④ 一键回归：结果 + 运行记录（分页每页 10 条）+ 测试报告 ---------- */
+async function loadMcpRuns(page) {
   const box = $('#mcpRunTable');
   if (!box) return;
   // 顶部先给出「将执行什么」的规模
@@ -471,32 +604,187 @@ async function loadMcpRuns() {
       ? `将执行：参数级 ${p.total} 条 + 场景级 ${s && s.exists ? s.stepCount : 0} 步`
       : '尚未生成用例，一键回归会自动重新生成';
   }
+  const p = Math.max(1, page || _mcpRunPage || 1);
   try {
-    const d = await api('/api/mcp/runs?limit=8');
+    const d = await api('/api/mcp/runs?page=' + p + '&pageSize=' + MCP_RUN_PAGE_SIZE);
+    _mcpRunPage = d.page || 1;
     const runs = d.runs || [];
-    if (!runs.length) { box.textContent = '暂无 MCP 运行记录，点击右上角「开始一键回归」。'; return; }
+    if (!d.total) {
+      box.textContent = '暂无 MCP 运行记录，点击右上角「开始一键回归」。';
+      return;
+    }
     box.innerHTML =
       '<table class="dt"><thead><tr>' +
-      '<th style="width:170px">批次</th><th style="width:150px">执行时间</th><th style="width:210px">来源</th>' +
-      '<th style="width:70px">总数</th><th style="width:70px">通过</th><th style="width:70px">失败</th>' +
-      '<th style="width:90px">耗时</th><th>通过率</th></tr></thead><tbody>' +
-      runs.map(r => {
+      '<th style="width:50px">#</th><th style="width:160px">批次</th><th style="width:150px">执行时间</th>' +
+      '<th style="width:200px">来源</th><th style="width:66px">总数</th><th style="width:66px">通过</th>' +
+      '<th style="width:66px">失败</th><th style="width:90px">耗时</th><th style="width:90px">通过率</th>' +
+      '<th style="width:96px">报告</th></tr></thead><tbody>' +
+      runs.map((r, i) => {
         const rate = r.total ? ((r.passedCount / r.total) * 100).toFixed(1) + '%' : '-';
         const bad = r.failedCount > 0;
-        return '<tr><td>' + esc(r.batchId) + '</td>' +
+        return '<tr><td class="ta-c">' + ((d.page - 1) * d.pageSize + i + 1) + '</td>' +
+          '<td><code>' + esc(r.batchId) + '</code></td>' +
           '<td>' + esc(r.startedAt || '') + '</td>' +
           '<td>' + esc((r.source && r.source.name) || (r.source && r.source.type) || '—') + '</td>' +
           '<td class="ta-c">' + r.total + '</td>' +
           '<td class="ta-c" style="color:var(--ok)">' + r.passedCount + '</td>' +
           '<td class="ta-c" style="color:' + (bad ? 'var(--bad)' : 'var(--text-faint)') + '">' + r.failedCount + '</td>' +
           '<td class="ta-c">' + (r.wallMs || r.durationMs || 0) + ' ms</td>' +
-          '<td style="color:' + (bad ? 'var(--bad)' : 'var(--ok)') + '">' + rate + '</td></tr>';
+          '<td class="ta-c" style="color:' + (bad ? 'var(--bad)' : 'var(--ok)') + '">' + rate + '</td>' +
+          '<td class="ta-c"><button class="btn ghost sm" data-report="' + esc(r.batchId) + '">查看报告</button></td></tr>';
       }).join('') +
       '</tbody></table>' +
-      '<div class="mcp-pager"><span>仅展示最近 ' + runs.length + ' 次 MCP 相关运行，完整记录见「运行记录」页</span></div>';
+      mcpPager('mrp', d.page, d.pages, d.total, runs.length);
   } catch (e) {
     box.textContent = '运行记录加载失败：' + e.message;
   }
+}
+
+async function openMcpReport(batchId) {
+  openMcpDetail({
+    from: 'run',
+    title: '回归测试报告',
+    sub: '正在生成报告…',
+    pageDesc: '本次回归执行的完整结果：概览 / 失败明细 / 用例执行明细',
+    body: '<div class="empty-hint">正在加载运行结果…</div>',
+  });
+  try {
+    const d = await api('/api/mcp/report?batchId=' + encodeURIComponent(batchId));
+    _mcpReport = { data: d, filter: 'all', page: 1 };
+    renderMcpReport();
+  } catch (e) {
+    if ($('#mcpDetailSub')) $('#mcpDetailSub').textContent = '报告加载失败';
+    if ($('#mcpDetailBody')) $('#mcpDetailBody').innerHTML =
+      '<div class="empty-hint">报告加载失败：' + esc(e.message) + '</div>';
+  }
+}
+
+function renderMcpReport() {
+  const body = $('#mcpDetailBody');
+  if (!body || !_mcpReport) return;
+  const { data, filter } = _mcpReport;
+  const s = data.summary || {};
+  const results = data.results || [];
+  const fails = results.filter(r => !r.passed);
+  const list = filter === 'fail' ? fails : results;
+  const pages = Math.max(1, Math.ceil(list.length / MCP_REPORT_PAGE_SIZE));
+  const cur = Math.min(Math.max(1, _mcpReport.page || 1), pages);
+  _mcpReport.page = cur;
+  const start = (cur - 1) * MCP_REPORT_PAGE_SIZE;
+  const rows = list.slice(start, start + MCP_REPORT_PAGE_SIZE);
+
+  if ($('#mcpDetailTitle')) $('#mcpDetailTitle').textContent = '回归测试报告 · ' + (s.batchId || '');
+  if ($('#mcpDetailSub')) $('#mcpDetailSub').textContent =
+    `${s.startedAt || ''} ｜ ${(s.source && s.source.name) || 'MCP 回归'} ｜ 通过率 ${s.passRate}%`;
+  if ($('#mcpDetailActions')) $('#mcpDetailActions').innerHTML =
+    '<button class="btn ghost sm" id="btnMcpReportExport">导出报告 JSON</button>';
+
+  const cards = [
+    ['批次', s.batchId || '—', ''],
+    ['执行时间', s.startedAt || '—', ''],
+    ['来源', (s.source && s.source.name) || '—', ''],
+    ['执行人', s.executedBy || '—', ''],
+    ['测试环境', s.environment || '—', ''],
+    ['用例总数', s.total || 0, ''],
+    ['通过', s.passedCount || 0, 'ok'],
+    ['失败', s.failedCount || 0, (s.failedCount ? 'bad' : '')],
+    ['通过率', s.passRate + '%', (s.failedCount ? 'bad' : 'ok')],
+    ['用例耗时合计', (s.durationMs || 0) + ' ms', ''],
+    ['实际执行耗时', (s.wallMs || 0) + ' ms', ''],
+    ['覆盖工具数', s.toolCount || 0, ''],
+  ];
+  let html = '<div class="mcp-report-head">' + cards.map(([k, v, kind]) =>
+    '<div class="mcp-rpt' + (kind ? ' ' + kind : '') + '"><span>' + esc(k) + '</span><b>' + esc(v) + '</b></div>'
+  ).join('') + '</div>';
+
+  // 失败明细
+  if (fails.length) {
+    html += '<div class="card-head" style="margin-top:14px">失败用例明细<em>共 ' + fails.length + ' 条，需优先处理</em></div>' +
+      '<div class="table-wrap"><table class="dt"><thead><tr>' +
+      '<th style="width:50px">#</th><th style="width:300px">用例</th><th style="width:220px">工具</th>' +
+      '<th style="width:70px">HTTP</th><th style="width:90px">耗时</th><th>失败原因</th>' +
+      '</tr></thead><tbody>' +
+      fails.map((r, i) => '<tr><td class="ta-c">' + (i + 1) + '</td>' +
+        '<td><b>' + esc(r.name) + '</b></td><td><code>' + esc(r.tool) + '</code></td>' +
+        '<td class="ta-c">' + esc(r.status || '—') + '</td>' +
+        '<td class="ta-c">' + r.durationMs + ' ms</td>' +
+        '<td style="color:var(--bad)">' + esc(shortText(r.error || '断言未通过', 200)) + '</td></tr>').join('') +
+      '</tbody></table></div>';
+  } else {
+    html += '<div class="card-head" style="margin-top:14px">失败用例明细</div>' +
+      '<div class="empty-hint ok">本次回归全部用例通过，无失败明细。</div>';
+  }
+
+  // 用例执行明细（可筛选 + 分页）
+  html += '<div class="card-head" style="margin-top:14px">用例执行明细<em>共 ' + results.length +
+    ' 条 ｜ 点击任一行展开请求 / 响应 / 断言</em></div>' +
+    '<div class="mcp-filters">' +
+    '<button class="btn sm ' + (filter === 'all' ? 'primary' : 'ghost') + '" data-rpf="all">全部 ' + results.length + '</button>' +
+    '<button class="btn sm ' + (filter === 'fail' ? 'primary' : 'ghost') + '" data-rpf="fail">仅失败 ' + fails.length + '</button>' +
+    '</div>' +
+    (rows.length ? '' : '<div class="empty-hint">当前筛选下没有用例——本次回归无失败用例，切换「全部」查看完整明细。</div>') +
+    '<div class="table-wrap"><table class="dt"><thead><tr>' +
+    '<th style="width:46px">#</th><th style="width:44px">结果</th><th style="width:330px">用例</th>' +
+    '<th style="width:200px">工具</th><th style="width:64px">HTTP</th><th style="width:88px">耗时</th>' +
+    '<th style="width:76px">断言</th><th>说明</th>' +
+    '</tr></thead><tbody>' +
+    rows.map((r, i) => {
+      const idx = start + i;
+      return '<tr class="row-link' + (r.passed ? '' : ' row-bad') + '" data-rexp="' + idx + '">' +
+        '<td class="ta-c">' + (idx + 1) + '</td>' +
+        '<td class="ta-c" style="color:' + (r.passed ? 'var(--ok)' : 'var(--bad)') + '">' +
+        (r.passed ? '✓' : '✗') + '</td>' +
+        '<td>' + esc(r.name) + '</td>' +
+        '<td><code>' + esc(r.tool) + '</code></td>' +
+        '<td class="ta-c">' + esc(r.status || '—') + '</td>' +
+        '<td class="ta-c">' + r.durationMs + ' ms</td>' +
+        '<td class="ta-c">' + r.assertsPassed + '/' + r.assertsTotal + '</td>' +
+        '<td style="opacity:.75">' + (r.passed ? '通过' : esc(shortText(r.error || '断言未通过', 80))) + '</td></tr>' +
+        '<tr class="mcp-exp-row" id="mcpRpt-' + idx + '" hidden><td colspan="8">' +
+        mcpReportCaseHtml(r) + '</td></tr>';
+    }).join('') +
+    '</tbody></table></div>' +
+    mcpPager('rpp', cur, pages, list.length, rows.length);
+
+  body.innerHTML = html;
+}
+
+function mcpReportCaseHtml(r) {
+  const req = r.request || {};
+  const hdr = Object.keys(req.headers || {}).map(k =>
+    k + ': ' + (String(k).toLowerCase() === 'authorization' ? '***' : req.headers[k])).join('\n');
+  return '<div class="mcp-case">' +
+    '<div class="mcp-kv">' +
+    '<div><span>用例 ID</span><b>' + esc(r.caseId) + '</b></div>' +
+    '<div><span>请求</span><b>' + esc((req.method || '') + ' ' + (req.url || '')) + '</b></div>' +
+    '<div><span>HTTP / 耗时</span><b>' + esc(r.status || '—') + ' / ' + r.durationMs + ' ms（请求 ' + (r.requestMs ?? '—') + ' ms）</b></div>' +
+    '<div><span>断言</span><b>' + r.assertsPassed + ' / ' + r.assertsTotal + ' 通过</b></div>' +
+    '</div>' +
+    (r.error ? '<div class="mcp-sub">失败原因</div><pre class="mcp-out sm" style="color:var(--bad)">' +
+      esc(r.error) + '</pre>' : '') +
+    '<div class="mcp-sub">断言明细</div>' +
+    (r.asserts || []).map(a => '<div class="mcp-assert' + (a.passed ? ' ok' : ' bad') + '">' +
+      (a.passed ? '✓' : '✗') + ' <code>' + esc([a.type, a.path, a.op].filter(Boolean).join(' ')) +
+      (a.expected !== undefined && a.expected !== null ? ' = ' + esc(JSON.stringify(a.expected)) : '') +
+      '</code>' + (a.desc ? '<em>' + esc(a.desc) + '</em>' : '') +
+      (a.message ? '<em>' + esc(a.message) + '</em>' : '') + '</div>').join('') +
+    '<div class="mcp-case-cols">' +
+    '<div><div class="mcp-sub">请求头</div><pre class="mcp-out sm">' + esc(hdr || '（无）') + '</pre></div>' +
+    '<div><div class="mcp-sub">请求体</div><pre class="mcp-out sm">' + esc(prettyJson(req.body)) + '</pre></div>' +
+    '</div>' +
+    '<div class="mcp-sub">响应体' + (r.bodyTruncated ? '（已截断）' : '') +
+    '</div><pre class="mcp-out sm">' + esc(r.responseBody || '（空）') + '</pre>' +
+    '</div>';
+}
+
+function downloadJson(name, obj) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
 }
 
 /* ---------- ⑤ Schema Diff ---------- */
@@ -634,7 +922,7 @@ function bindMcpEvents() {
       out.textContent = lines.join('\n');
       toast(`场景执行完成：${d.summary.passed}/${d.summary.total} 通过`,
         2800, d.summary.failed ? 'warn' : 'ok');
-      loadMcpRuns();
+      loadMcpRuns(1);
     }));
 
   on('#btnMcpRegression', () => mcpAction($('#btnMcpRegression'), '#mcpOutRun',
@@ -654,7 +942,7 @@ function bindMcpEvents() {
       ].join('\n');
       toast(`一键回归：${s.passed}/${s.total} 通过`, 3000, s.failed ? 'warn' : 'ok');
       loadMcpStatus();
-      loadMcpRuns();
+      loadMcpRuns(1);
       loadMcpDiff();
     }));
 
@@ -673,6 +961,74 @@ function bindMcpEvents() {
   };
   pagerBind('#mcpToolTable', 'mtp', p => renderMcpToolPage(p));
   pagerBind('#mcpParamsTable', 'mpp', p => { _mcpParamPage = p; renderMcpParams(_mcpParamSum); });
+
+  // 场景列表：点击任一行/「详情」→ 场景详情页（该场景下全部用例）
+  const scenBox = $('#mcpScenTable');
+  if (scenBox) {
+    scenBox.addEventListener('click', e => {
+      const t = e.target.closest && e.target.closest('[data-scen]');
+      if (t) openMcpScenDetail(Number(t.dataset.scen));
+    });
+  }
+
+  // 一键回归：运行记录分页 + 每行「查看报告」
+  const runBox = $('#mcpRunTable');
+  if (runBox) {
+    runBox.addEventListener('click', e => {
+      const rep = e.target.closest && e.target.closest('[data-report]');
+      if (rep) { openMcpReport(rep.dataset.report); return; }
+      const pg = e.target.closest && e.target.closest('[data-mrp]');
+      if (pg && !pg.disabled) loadMcpRuns(Number(pg.dataset.mrp));
+    });
+  }
+
+  // 详情视图：返回 / 展开用例 / 报告筛选与分页
+  on('#btnMcpDetailBack', () => closeMcpDetail());
+  const detailBody = $('#mcpDetailBody');
+  if (detailBody) {
+    detailBody.addEventListener('click', e => {
+      const t = e.target;
+      const scase = t.closest && t.closest('[data-scase]');
+      if (scase) {
+        const row = $('#mcpScase-' + scase.dataset.scase);
+        if (row) row.hidden = !row.hidden;
+        return;
+      }
+      const rexp = t.closest && t.closest('[data-rexp]');
+      if (rexp) {
+        const row = $('#mcpRpt-' + rexp.dataset.rexp);
+        if (row) row.hidden = !row.hidden;
+        return;
+      }
+      const f = t.closest && t.closest('[data-rpf]');
+      if (f && _mcpReport) {
+        _mcpReport.filter = f.dataset.rpf;
+        _mcpReport.page = 1;
+        renderMcpReport();
+        return;
+      }
+      const pg = t.closest && t.closest('[data-rpp]');
+      if (pg && !pg.disabled && _mcpReport) {
+        _mcpReport.page = Number(pg.dataset.rpp);
+        renderMcpReport();
+      }
+    });
+  }
+
+  const detailActions = $('#mcpDetailActions');
+  if (detailActions) {
+    detailActions.addEventListener('click', e => {
+      if (e.target.id === 'btnMcpScenExport' && _mcpScenCases) {
+        downloadJson('mcp-scenario-cases.json', _mcpScenCases);
+        toast('已导出该场景用例 JSON', 2200, 'ok');
+      }
+      if (e.target.id === 'btnMcpReportExport' && _mcpReport) {
+        downloadJson('mcp-regression-report-' + ((_mcpReport.data.summary || {}).batchId || '') + '.json',
+          _mcpReport.data);
+        toast('已导出回归报告 JSON', 2200, 'ok');
+      }
+    });
+  }
 }
 
 function fmtDiff(d) {

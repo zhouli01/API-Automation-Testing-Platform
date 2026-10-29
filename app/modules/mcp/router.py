@@ -4,6 +4,7 @@
 对应架构五个环节（4a 参数级 · 4b 场景级 · 5 执行 · 6 diff 回归）。
 """
 import json
+import re
 import time
 from typing import Any, Dict
 
@@ -131,19 +132,129 @@ def _scenario_summary():
             'chains': chains, 'stepCount': sum(c['stepCount'] for c in chains)}
 
 
-@router.get('/runs', summary='最近 MCP 运行记录（参数级 / 场景级回归）')
-def recent_runs(limit: int = 5, _user: dict = Depends(require_user)):
+@router.get('/scenarios/detail', summary='场景详情：该链路下全部测试用例（含 JSON-RPC 请求与断言）')
+def scenario_detail(index: int = 0, name: str = '', _user: dict = Depends(require_user)):
+    """把「场景」展开成一条条可执行的测试用例，供详情页展示。"""
+    try:
+        with open(MCP_SCENARIO_FILE, encoding='utf-8') as f:
+            doc = json.load(f)
+    except (OSError, ValueError):
+        raise ApiError(404, '尚未生成场景用例，请先执行「生成场景链路」')
+    scenarios = doc.get('scenarios') or []
+    if not scenarios:
+        raise ApiError(404, '尚未生成场景用例，请先执行「生成场景链路」')
+    if name:
+        hit = next((i for i, s in enumerate(scenarios)
+                    if name == str(i) or name in (s.get('name') or '')), None)
+        if hit is None:
+            raise ApiError(404, '未找到该场景：%s' % name)
+        index = hit
+    if not 0 <= index < len(scenarios):
+        raise ApiError(404, '场景序号超出范围（0 ~ %d）' % (len(scenarios) - 1))
+    sc = scenarios[index]
+    gateway = doc.get('gateway') or MCP_GATEWAY_URL
+    cases = []
+    for i, st in enumerate(sc.get('steps') or []):
+        c = scenarios_runner._step_case(i, index, st, gateway, sc.get('name') or '')
+        headers = [{'key': h.get('key'), 'value': ('***' if str(h.get('key', '')).lower() == 'authorization'
+                                                   else h.get('value'))}
+                   for h in c.get('headers') or []]
+        cases.append({
+            'seq': i + 1, 'name': c['name'], 'caseId': c['id'],
+            'tool': st.get('tool') or '', 'desc': st.get('desc') or '',
+            'args': st.get('args') or {}, 'extract': st.get('extract') or {},
+            'method': c['method'], 'url': c['url'], 'headers': headers,
+            'body': c['body'], 'asserts': c.get('_asserts') or [],
+            'module': c['module'], 'tags': c['tags'],
+        })
+    return {'ok': True, 'gateway': gateway,
+            'scenario': {'index': index, 'name': sc.get('name') or '',
+                         'desc': sc.get('desc') or '', 'stepCount': len(cases)},
+            'cases': cases}
+
+
+@router.get('/runs', summary='MCP 运行记录（分页，默认每页 10 条）')
+def recent_runs(page: int = 1, pageSize: int = 10, limit: int = 0,
+                _user: dict = Depends(require_user)):
     from ...store import history_summary, load_history, sorted_batches
-    out = []
+    rows = []
     try:
         for b in sorted_batches(load_history()):
             if str((b.get('source') or {}).get('type') or '').startswith('mcp'):
-                out.append(history_summary(b))
-            if len(out) >= max(1, min(limit, 20)):
-                break
+                rows.append(history_summary(b))
     except Exception:  # noqa: BLE001
         pass
-    return {'ok': True, 'runs': out}
+    size = limit if limit > 0 else pageSize
+    size = max(1, min(int(size or 10), 100))
+    total = len(rows)
+    pages = max(1, (total + size - 1) // size)
+    cur = min(max(1, int(page or 1)), pages)
+    start = (cur - 1) * size
+    return {'ok': True, 'runs': rows[start:start + size], 'total': total,
+            'page': cur, 'pages': pages, 'pageSize': size}
+
+
+def _mcp_tool_of(name: str, body: str) -> str:
+    """从 JSON-RPC 请求体或用例名中还原真实 MCP 工具名（如 armory_package_search）。"""
+    try:
+        doc = json.loads(body or '{}')
+        tool = ((doc.get('params') or {}).get('name') or '').strip()
+        if tool:
+            return tool
+    except (ValueError, AttributeError):
+        pass
+    m = re.match(r'\s*([A-Za-z][A-Za-z0-9_]*)', name or '')
+    return m.group(1) if m else ''
+
+
+@router.get('/report', summary='回归执行结果测试报告（按批次，含失败明细与用例结果）')
+def run_report(batchId: str = '', _user: dict = Depends(require_user)):
+    from ...store import history_summary, load_history, sorted_batches
+    batches = sorted_batches(load_history())
+    target = None
+    if batchId:
+        target = next((b for b in batches if b.get('batchId') == batchId), None)
+    else:  # 不传批次则取最近一次 MCP 运行
+        target = next((b for b in batches
+                       if str((b.get('source') or {}).get('type') or '').startswith('mcp')), None)
+    if not target:
+        raise ApiError(404, '未找到运行批次：%s' % (batchId or '（暂无 MCP 运行记录）'))
+    results = []
+    for r in target.get('results') or []:
+        req = r.get('request') or {}
+        asserts = r.get('asserts') or []
+        body = (req.get('body') or '')[:2000]
+        results.append({
+            'caseId': r.get('caseId'), 'name': r.get('name') or r.get('caseName') or '',
+            'tool': _mcp_tool_of(r.get('name') or r.get('caseName') or '', body),
+            'module': r.get('module') or '', 'passed': bool(r.get('passed')),
+            'status': r.get('status'), 'durationMs': r.get('durationMs') or 0,
+            'requestMs': r.get('requestMs'),
+            'error': r.get('error') or '',
+            'chain': r.get('chain'),
+            'asserts': [{'type': a.get('type'), 'path': a.get('path'), 'op': a.get('op'),
+                         'expected': a.get('value'), 'passed': bool(a.get('passed')),
+                         'skipped': bool(a.get('skipped')), 'soft': bool(a.get('soft')),
+                         'desc': a.get('desc') or '', 'message': a.get('message') or ''}
+                        for a in asserts],
+            'assertsPassed': sum(1 for a in asserts if a.get('passed')),
+            'assertsTotal': len([a for a in asserts if not a.get('skipped')]),
+            'request': {'method': req.get('method'), 'url': req.get('url'),
+                        'headers': req.get('headers') or {}, 'body': (req.get('body') or '')[:2000]},
+            'responseBody': (r.get('responseBody') or '')[:2000],
+            'bodyTruncated': bool(r.get('bodyTruncated')) or len(r.get('responseBody') or '') > 2000,
+        })
+    s = history_summary(target)
+    summary = {'batchId': s.get('batchId'), 'executedBy': s.get('executedBy'),
+               'environment': s.get('environment'), 'startedAt': s.get('startedAt'),
+               'durationMs': s.get('durationMs'), 'wallMs': s.get('wallMs'),
+               'total': s.get('total'), 'passedCount': s.get('passedCount'),
+               'failedCount': s.get('failedCount'),
+               'passRate': round((s.get('passedCount') or 0) * 100.0 / s['total'], 2) if s.get('total') else 0,
+               'source': s.get('source') or {},
+               'toolCount': len({r['tool'] for r in results if r['tool']}),
+               'scenarioCount': len({r['chain'] for r in results if r.get('chain') is not None})}
+    return {'ok': True, 'summary': summary, 'results': results}
 
 
 @router.post('/discover', summary='第 1 步 · 契约发现：tools/list 导出 contract.json 并 diff')
