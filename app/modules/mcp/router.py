@@ -91,17 +91,20 @@ def run_scenarios(payload: Dict[str, Any] = Body(default_factory=dict),
     return {'ok': True, **out}
 
 
-@router.post('/diff', summary='第 6 步 · Schema diff：与上次快照对比（发现即告警）')
+@router.post('/diff', summary='第 6 步 · Schema diff：与上次基线快照对比（发现即告警）')
 def schema_diff(_user: dict = Depends(require_user)):
     try:
         tools = mcp_client.tools_list()
     except Exception as e:  # noqa: BLE001
         raise ApiError(502, f'MCP 网关不可达：{type(e).__name__}: {e}')
     current = contract_mod._contract(tools)
-    last = contract_mod.load_contract()
-    diff = contract_mod.diff_contracts(
-        {'tools': (last or {}).get('tools') or []}, current)
-    return {'ok': True, 'currentCount': current['armoryToolCount'], 'diff': diff}
+    # 基线 = 上次「契约发现」时的快照（data/mcp_contract_snapshot.json），
+    # 不用 contract.json——它在每次发现/回归后都会刷新为最新，会导致 diff 恒为空
+    baseline = contract_mod.load_baseline()
+    diff = contract_mod.diff_contracts(baseline, current)
+    return {'ok': True, 'currentCount': current['armoryToolCount'],
+            'baselineTime': (baseline or {}).get('generatedAt') or
+                            (baseline or {}).get('time') or '', 'diff': diff}
 
 
 @router.post('/regression', summary='一键回归：契约发现 → diff → 生成参数用例 → 全量执行（4a+4b）')

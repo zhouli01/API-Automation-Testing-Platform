@@ -86,3 +86,13 @@ def load_contract():
         return json.load(open(MCP_CONTRACT_FILE, encoding='utf-8'))
     except Exception:  # noqa: BLE001
         return None
+
+
+def load_baseline():
+    """上次「契约发现」保存的基线快照（diff 的对比基准）。"""
+    if not os.path.isfile(MCP_SNAPSHOT_FILE):
+        return None
+    try:
+        return json.load(open(MCP_SNAPSHOT_FILE, encoding='utf-8'))
+    except Exception:  # noqa: BLE001
+        return None
