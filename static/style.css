@@ -935,10 +935,33 @@ table.dt.dt-hs .row-actions .btn.sm { padding: 6px 12px; font-size: 12.5px; font
 }
 .mcp-out[hidden] { display: none !important; }
 .mcp-out.sm { max-height: 240px; margin-top: 10px; }
-.mcp-pager {
-  display: flex; align-items: center; gap: 12px; justify-content: center;
-  margin-top: 10px; font-size: 12px; color: var(--text-dim);
+/* MCP 清单分页条：左侧「共 N 项数据」，右侧 ‹ 1 2 3 … 17 ›（对齐平台分页样式） */
+.pager.mcp-pager {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px 16px; flex-wrap: wrap;
+  margin-top: 12px; padding: 12px 4px 4px;
+  border-top: 1px dashed var(--border);
+  font-size: 12px; color: var(--text-dim);
 }
+.mcp-pager .mpg-info { display: inline-flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.mcp-pager .mpg-info b { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--text); }
+.mcp-pager .mpg-info em { font-style: normal; color: var(--text-faint); }
+.mcp-pager .mpg-info em::before { content: '·'; margin-right: 8px; color: var(--border-strong); }
+.mcp-pager .mpg-nav { display: inline-flex; align-items: center; gap: 4px; }
+.mcp-pager .mpg-btn {
+  font: inherit; font-size: 13px; min-width: 30px; height: 30px; padding: 0 8px;
+  border: 1px solid transparent; background: transparent; color: var(--text-dim);
+  border-radius: 7px; cursor: pointer;
+  transition: color .12s, background .12s, border-color .12s;
+}
+.mcp-pager .mpg-btn:hover:not(:disabled):not(.on) { color: var(--accent); background: var(--bg-soft); }
+.mcp-pager .mpg-btn.on {
+  border-color: var(--accent); color: var(--accent);
+  font-weight: 700; background: var(--accent-soft);
+}
+.mcp-pager .mpg-btn:disabled { opacity: .35; cursor: not-allowed; }
+.mcp-pager .mpg-arrow { font-size: 16px; line-height: 1; padding: 0 7px; }
+.mcp-pager .mpg-gap { color: var(--text-faint); padding: 0 2px; letter-spacing: 1px; }
 
 /* 分类统计 chips */
 .mcp-stats {

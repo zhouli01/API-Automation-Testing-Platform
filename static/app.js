@@ -273,12 +273,17 @@ let _mcpParamSum = null;         // 参数级用例概览
 let _mcpParamPage = 1;
 const MCP_PARAM_PAGE_SIZE = 10;
 let _mcpScenSum = null;          // 场景级用例概览
+let _mcpScenPage = 1;            // 场景链路当前页
+const MCP_SCEN_PAGE_SIZE = 10;   // 场景链路每页条数
+let _mcpScenCasePage = 1;        // 场景详情内用例当前页
+const MCP_SCEN_CASE_PAGE_SIZE = 10;
 let _mcpDiffData = null;         // 最近一次 diff 结果
 let _mcpRunPage = 1;             // 运行记录当前页
 const MCP_RUN_PAGE_SIZE = 10;    // 运行记录每页条数
 let _mcpDetailFrom = 'scenarios';// 详情视图返回时回到哪个子菜单
-let _mcpReport = null;           // 回归报告 {data, filter, page}
-const MCP_REPORT_PAGE_SIZE = 20; // 报告内用例明细每页条数
+let _mcpReport = null;           // 回归报告 {data, filter, page, failPage}
+const MCP_REPORT_PAGE_SIZE = 10; // 报告内用例明细每页条数
+const MCP_REPORT_FAIL_PAGE_SIZE = 10; // 报告内失败明细每页条数
 let _mcpScenCases = null;        // 当前场景详情用例（展开行用）
 
 function setMcpMenuOpen(open) {
@@ -360,11 +365,52 @@ function mcpChips(items) {
     ' <b>' + esc(value) + '</b></span>').join('');
 }
 
-function mcpPager(attr, page, pages, total, rows) {
-  return '<div class="mcp-pager">' +
-    '<button class="btn ghost sm" data-' + attr + '="' + (page - 1) + '"' + (page <= 1 ? ' disabled' : '') + '>上一页</button>' +
-    '<span>第 ' + page + ' / ' + pages + ' 页（本页 ' + rows + ' 条，共 ' + total + ' 条）</span>' +
-    '<button class="btn ghost sm" data-' + attr + '="' + (page + 1) + '"' + (page >= pages ? ' disabled' : '') + '>下一页</button>' +
+/* 页码窗口：首页 + 当前页附近 5 个 + … + 末页（对齐平台参考样式） */
+function pagerNums(cur, pages) {
+  if (pages <= 7) {
+    const a = [];
+    for (let i = 1; i <= pages; i++) a.push(i);
+    return a;
+  }
+  let start = Math.max(1, cur - 2);
+  let end = Math.min(pages, cur + 2);
+  if (cur <= 4) { start = 1; end = 5; }
+  if (cur >= pages - 3) { start = pages - 4; end = pages; }
+  const out = [];
+  if (start > 1) { out.push(1); if (start > 2) out.push('…'); }
+  for (let i = start; i <= end; i++) out.push(i);
+  if (end < pages) { if (end < pages - 1) out.push('…'); out.push(pages); }
+  return out;
+}
+
+/**
+ * MCP 各清单统一分页条：左侧「共 N 项数据」，右侧 ‹ 1 2 3 … ›。
+ * @param {string} attr  绑定属性名（data-<attr>，容器内委托点击）
+ * @param {number} page  当前页
+ * @param {number} pages 总页数
+ * @param {number} total 总条数
+ * @param {number} rows  本页条数（可空）
+ * @param {string} hint  额外提示文案（可空，纯文本）
+ */
+function mcpPager(attr, page, pages, total, rows, hint) {
+  const all = Math.max(1, pages || 1);
+  const cur = Math.min(Math.max(1, page || 1), all);
+  const nums = pagerNums(cur, all);
+  const arrow = (p, label, dis) =>
+    '<button class="mpg-btn mpg-arrow" type="button" data-' + attr + '="' + p + '"' +
+    (dis ? ' disabled' : '') + ' aria-label="' + label + '">' + (label === '上一页' ? '‹' : '›') + '</button>';
+  return '<div class="pager mcp-pager">' +
+    '<span class="mpg-info">共 <b>' + total + '</b> 项数据' +
+      (rows != null ? '<em>本页 ' + rows + ' 条</em>' : '') +
+      (hint ? '<em>' + esc(hint) + '</em>' : '') + '</span>' +
+    '<span class="mpg-nav">' +
+      arrow(cur - 1, '上一页', cur <= 1) +
+      nums.map(n => n === '…'
+        ? '<span class="mpg-gap">…</span>'
+        : '<button class="mpg-btn' + (n === cur ? ' on' : '') + '" type="button" data-' + attr + '="' + n + '"' +
+          (n === cur ? ' aria-current="page"' : '') + '>' + n + '</button>').join('') +
+      arrow(cur + 1, '下一页', cur >= all) +
+    '</span>' +
     '</div>';
 }
 
@@ -489,24 +535,30 @@ function renderMcpScen(sum) {
   }
   if ($('#mcpScenMeta')) $('#mcpScenMeta').textContent =
     `共 ${sum.chains.length} 条链路 / ${sum.stepCount} 个步骤 ｜ 生成于 ${sum.mtime} ｜ ${sum.file}`;
+  const total = sum.chains.length;
+  const pages = Math.max(1, Math.ceil(total / MCP_SCEN_PAGE_SIZE));
+  _mcpScenPage = Math.min(Math.max(1, _mcpScenPage || 1), pages);
+  const start = (_mcpScenPage - 1) * MCP_SCEN_PAGE_SIZE;
+  const rows = sum.chains.slice(start, start + MCP_SCEN_PAGE_SIZE);
   box.innerHTML =
     '<table class="dt"><thead><tr>' +
     '<th style="width:56px">#</th><th style="width:250px">场景链路</th><th style="width:240px">说明</th>' +
     '<th style="width:64px">步骤</th><th>步骤链（tool → tool）</th><th style="width:104px">用例</th>' +
     '</tr></thead><tbody>' +
-    sum.chains.map((c, ci) =>
-      '<tr class="row-link" data-scen="' + ci + '" title="点击查看该场景下的全部测试用例">' +
-      '<td class="ta-c">' + (ci + 1) + '</td>' +
-      '<td><b>' + esc(c.name) + '</b></td>' +
-      '<td style="opacity:.75">' + esc(c.desc || '—') + '</td>' +
-      '<td class="ta-c">' + c.stepCount + '</td>' +
-      '<td>' + c.steps.map((s, i) =>
-        (i ? ' <span style="opacity:.4">→</span> ' : '') +
-        '<span class="env-chip">' + esc(s.tool) + '</span>').join('') + '</td>' +
-      '<td class="ta-c"><button class="btn ghost sm" data-scen="' + ci + '">详情 →</button></td></tr>'
-    ).join('') +
+    rows.map((c, i) => {
+      const ci = start + i;
+      return '<tr class="row-link" data-scen="' + ci + '" title="点击查看该场景下的全部测试用例">' +
+        '<td class="ta-c">' + (ci + 1) + '</td>' +
+        '<td><b>' + esc(c.name) + '</b></td>' +
+        '<td style="opacity:.75">' + esc(c.desc || '—') + '</td>' +
+        '<td class="ta-c">' + c.stepCount + '</td>' +
+        '<td>' + c.steps.map((s, k) =>
+          (k ? ' <span style="opacity:.4">→</span> ' : '') +
+          '<span class="env-chip">' + esc(s.tool) + '</span>').join('') + '</td>' +
+        '<td class="ta-c"><button class="btn ghost sm" data-scen="' + ci + '">详情 →</button></td></tr>';
+    }).join('') +
     '</tbody></table>' +
-    '<div class="mcp-pager"><span>点击任一行进入场景详情，可查看该场景下的全部测试用例（请求 / 断言 / 变量传递）</span></div>';
+    mcpPager('msp', _mcpScenPage, pages, total, rows.length, '点击任一行进入场景详情');
 }
 
 function prettyJson(s) {
@@ -519,6 +571,7 @@ function shortText(s, n) {
 }
 
 async function openMcpScenDetail(index) {
+  _mcpScenCasePage = 1;
   openMcpDetail({
     from: 'scenarios',
     title: '场景详情',
@@ -548,7 +601,7 @@ function mcpCaseAssertList(asserts) {
 function renderMcpScenDetail(d) {
   const sc = d.scenario || {};
   const cases = d.cases || [];
-  _mcpScenCases = { scenario: sc, cases };
+  _mcpScenCases = { scenario: sc, cases, gateway: d.gateway };
   const tools = Array.from(new Set(cases.map(c => c.tool).filter(Boolean)));
   const varLinks = cases.reduce((arr, c) =>
     arr.concat(Object.keys(c.extract || {}).map(k => k + ' ← ' + c.extract[k])), []);
@@ -560,6 +613,11 @@ function renderMcpScenDetail(d) {
     '<button class="btn ghost sm" id="btnMcpScenExport">导出用例 JSON</button>';
   const body = $('#mcpDetailBody');
   if (!body) return;
+  const totalCases = cases.length;
+  const pages = Math.max(1, Math.ceil(totalCases / MCP_SCEN_CASE_PAGE_SIZE));
+  _mcpScenCasePage = Math.min(Math.max(1, _mcpScenCasePage || 1), pages);
+  const start = (_mcpScenCasePage - 1) * MCP_SCEN_CASE_PAGE_SIZE;
+  const rows = cases.slice(start, start + MCP_SCEN_CASE_PAGE_SIZE);
   body.innerHTML =
     '<div class="mcp-stats">' + mcpChips([
       ['场景步骤', cases.length],
@@ -576,11 +634,12 @@ function renderMcpScenDetail(d) {
     '<th style="width:50px">#</th><th style="width:260px">用例名称</th><th style="width:230px">工具</th>' +
     '<th style="width:210px">参数</th><th style="width:130px">提取变量</th><th>说明</th>' +
     '</tr></thead><tbody>' +
-    cases.map((c, i) => {
+    rows.map((c, i) => {
+      const idx = start + i;
       const argKeys = Object.keys(c.args || {});
       const exKeys = Object.keys(c.extract || {});
-      return '<tr class="row-link" data-scase="' + i + '" title="点击展开该用例的请求与断言">' +
-        '<td class="ta-c">' + (i + 1) + '</td>' +
+      return '<tr class="row-link" data-scase="' + idx + '" title="点击展开该用例的请求与断言">' +
+        '<td class="ta-c">' + (idx + 1) + '</td>' +
         '<td><b>' + esc(c.name) + '</b></td>' +
         '<td><code>' + esc(c.tool) + '</code></td>' +
         '<td>' + (argKeys.length ? argKeys.map(k => '<span class="env-chip">' +
@@ -589,11 +648,11 @@ function renderMcpScenDetail(d) {
         '<td>' + (exKeys.length ? exKeys.map(k => '<span class="env-chip ok">' +
           esc(k) + '</span>').join(' ') : '<span style="opacity:.5">—</span>') + '</td>' +
         '<td style="opacity:.75">' + esc(c.desc || '—') + '</td></tr>' +
-        '<tr class="mcp-exp-row" id="mcpScase-' + i + '" hidden><td colspan="6">' +
+        '<tr class="mcp-exp-row" id="mcpScase-' + idx + '" hidden><td colspan="6">' +
         mcpScenCaseHtml(c) + '</td></tr>';
     }).join('') +
     '</tbody></table></div>' +
-    '<div class="mcp-pager"><span>点击任一行展开 JSON-RPC 请求、请求头与断言</span></div>';
+    mcpPager('scp', _mcpScenCasePage, pages, totalCases, rows.length, '点击任一行展开请求 / 断言');
 }
 
 function mcpScenCaseHtml(c) {
@@ -672,7 +731,7 @@ async function openMcpReport(batchId) {
   });
   try {
     const d = await api('/api/mcp/report?batchId=' + encodeURIComponent(batchId));
-    _mcpReport = { data: d, filter: 'all', page: 1 };
+    _mcpReport = { data: d, filter: 'all', page: 1, failPage: 1 };
     renderMcpReport();
   } catch (e) {
     if ($('#mcpDetailSub')) $('#mcpDetailSub').textContent = '报告加载失败';
@@ -719,19 +778,25 @@ function renderMcpReport() {
     '<div class="mcp-rpt' + (kind ? ' ' + kind : '') + '"><span>' + esc(k) + '</span><b>' + esc(v) + '</b></div>'
   ).join('') + '</div>';
 
-  // 失败明细
+  // 失败明细（每页 10 条）
   if (fails.length) {
+    const fPages = Math.max(1, Math.ceil(fails.length / MCP_REPORT_FAIL_PAGE_SIZE));
+    const fCur = Math.min(Math.max(1, _mcpReport.failPage || 1), fPages);
+    _mcpReport.failPage = fCur;
+    const fStart = (fCur - 1) * MCP_REPORT_FAIL_PAGE_SIZE;
+    const fRows = fails.slice(fStart, fStart + MCP_REPORT_FAIL_PAGE_SIZE);
     html += '<div class="card-head" style="margin-top:14px">失败用例明细<em>共 ' + fails.length + ' 条，需优先处理</em></div>' +
       '<div class="table-wrap"><table class="dt"><thead><tr>' +
       '<th style="width:50px">#</th><th style="width:300px">用例</th><th style="width:220px">工具</th>' +
       '<th style="width:70px">HTTP</th><th style="width:90px">耗时</th><th>失败原因</th>' +
       '</tr></thead><tbody>' +
-      fails.map((r, i) => '<tr><td class="ta-c">' + (i + 1) + '</td>' +
+      fRows.map((r, i) => '<tr><td class="ta-c">' + (fStart + i + 1) + '</td>' +
         '<td><b>' + esc(r.name) + '</b></td><td><code>' + esc(r.tool) + '</code></td>' +
         '<td class="ta-c">' + esc(r.status || '—') + '</td>' +
         '<td class="ta-c">' + r.durationMs + ' ms</td>' +
         '<td style="color:var(--bad)">' + esc(shortText(r.error || '断言未通过', 200)) + '</td></tr>').join('') +
-      '</tbody></table></div>';
+      '</tbody></table></div>' +
+      mcpPager('rfp', fCur, fPages, fails.length, fRows.length);
   } else {
     html += '<div class="card-head" style="margin-top:14px">失败用例明细</div>' +
       '<div class="empty-hint ok">本次回归全部用例通过，无失败明细。</div>';
@@ -1009,6 +1074,13 @@ function bindMcpEvents() {
   const scenBox = $('#mcpScenTable');
   if (scenBox) {
     scenBox.addEventListener('click', e => {
+      const pg = e.target.closest && e.target.closest('[data-msp]');
+      if (pg) {
+        if (pg.disabled) return;
+        _mcpScenPage = Number(pg.dataset.msp);
+        renderMcpScen(_mcpScenSum);
+        return;
+      }
       const t = e.target.closest && e.target.closest('[data-scen]');
       if (t) openMcpScenDetail(Number(t.dataset.scen));
     });
@@ -1053,6 +1125,18 @@ function bindMcpEvents() {
       const pg = t.closest && t.closest('[data-rpp]');
       if (pg && !pg.disabled && _mcpReport) {
         _mcpReport.page = Number(pg.dataset.rpp);
+        renderMcpReport();
+        return;
+      }
+      const spg = t.closest && t.closest('[data-scp]');
+      if (spg && !spg.disabled && _mcpScenCases) {
+        _mcpScenCasePage = Number(spg.dataset.scp);
+        renderMcpScenDetail(_mcpScenCases);
+        return;
+      }
+      const fpg = t.closest && t.closest('[data-rfp]');
+      if (fpg && !fpg.disabled && _mcpReport) {
+        _mcpReport.failPage = Number(fpg.dataset.rfp);
         renderMcpReport();
       }
     });
