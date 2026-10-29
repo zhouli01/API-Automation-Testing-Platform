@@ -258,6 +258,112 @@ function switchPage(name, sub) {
     setUsersMenuOpen(true);
     setUsersPanel(sub || state.usersSub || 'profile');
   }
+  if (name === 'mcp') {
+    setMcpMenuOpen(true);
+    setMcpPanel(sub || state.mcpSub || 'contract');
+  }
+}
+
+/* ---------- MCP 测试（契约驱动）：二级菜单与五个环节面板 ---------- */
+function setMcpMenuOpen(open) {
+  if ($('#mcpSubmenu')) $('#mcpSubmenu').hidden = !open;
+  if ($('#menuGroupMcp')) $('#menuGroupMcp').classList.toggle('open', open);
+}
+
+const MCP_PANELS = {
+  contract: ['契约发现', '从 MCP Server tools/list 自动提取接口契约'],
+  params: ['参数级用例', '按 JSON Schema 规则批量生成 4a 参数级用例'],
+  scenarios: ['场景级用例', '4b 状态依赖链路：上一步输出喂给下一步'],
+  run: ['一键回归', '契约发现 → diff → 生成 → 全量执行（4a + 4b）'],
+  diff: ['Schema Diff', '对比 tools/list 与上次快照，接口变更自动告警'],
+};
+
+function setMcpPanel(sub) {
+  const name = MCP_PANELS[sub] ? sub : 'contract';
+  state.mcpSub = name;
+  $$('.mcp-sub').forEach(b => b.classList.toggle('active', b.dataset.msub === name));
+  Object.keys(MCP_PANELS).forEach(k => {
+    const el = $('#mcpPanel-' + k);
+    if (el) el.hidden = k !== name;
+  });
+  if ($('#mcpTitle')) $('#mcpTitle').textContent = MCP_PANELS[name][0];
+  if ($('#mcpPageDesc')) $('#mcpPageDesc').textContent = MCP_PANELS[name][1];
+  if (name === 'contract') loadMcpStatus();
+}
+
+async function loadMcpStatus() {
+  try {
+    const s = await api('/api/mcp/status');
+    $('#mcpGatewayText').textContent =
+      `网关：${s.gateway} ｜ ${s.gatewayReachable ? '可达 ✓' : '不可达 ✗'} ｜ ` +
+      `契约：${s.contract.exists ? s.contract.toolCount + ' 个工具（' + s.contract.mtime + '）' : '未发现'}`;
+  } catch (e) {
+    $('#mcpGatewayText').textContent = '网关状态获取失败：' + e.message;
+  }
+}
+
+function fmtDiff(d) {
+  if (d.first) return '首次发现契约，无对比基线。';
+  const lines = [];
+  lines.push(`新增工具 ${d.added.length} 个${d.added.length ? '：' + d.added.join(', ') : ''}`);
+  lines.push(`删除工具 ${d.removed.length} 个${d.removed.length ? '：' + d.removed.join(', ') : ''}`);
+  lines.push(`变更工具 ${d.changed.length} 个`);
+  d.changed.forEach(c =>
+    lines.push(`  · ${c.tool}（${c.fields.join('/')}）required: [${c.oldRequired}] → [${c.newRequired}]`));
+  if (!d.added.length && !d.removed.length && !d.changed.length)
+    lines.push('接口契约无变化，用例无需更新。');
+  return lines.join('\n');
+}
+
+async function mcpAction(btn, outSel, fn) {
+  btn.disabled = true;
+  const old = btn.textContent;
+  btn.textContent = '执行中…';
+  const out = $(outSel);
+  try {
+    const data = await fn();
+    out.textContent = JSON.stringify(data, null, 2);
+    out.dataset.ok = '1';
+  } catch (e) {
+    out.textContent = '执行失败：' + e.message;
+    out.dataset.ok = '';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+}
+
+function bindMcpEvents() {
+  const on = (sel, fn) => { const el = $(sel); if (el) el.addEventListener('click', fn); };
+  on('#btnMcpDiscover', () => mcpAction($('#btnMcpDiscover'), '#mcpOutContract',
+    async () => {
+      const d = await post('/api/mcp/discover');
+      return { 工具总数: d.toolCount, armory工具: d.armoryToolCount, diff: d.diff };
+    }));
+  on('#btnMcpDiffQuick', () => mcpAction($('#btnMcpDiffQuick'), '#mcpOutContract',
+    async () => {
+      const d = await post('/api/mcp/diff');
+      return { 当前工具数: d.currentCount, diff: d.diff };
+    }));
+  on('#btnMcpGenParams', () => mcpAction($('#btnMcpGenParams'), '#mcpOutParams',
+    () => post('/api/mcp/generate/params')));
+  on('#btnMcpGenScen', () => mcpAction($('#btnMcpGenScen'), '#mcpOutScen',
+    () => post('/api/mcp/generate/scenarios')));
+  on('#btnMcpRunScen', () => mcpAction($('#btnMcpRunScen'), '#mcpOutScen',
+    async () => {
+      const d = await post('/api/mcp/scenarios/run');
+      return { summary: d.summary,
+        chains: d.chains.map(c => ({ name: c.name, steps: c.steps, passed: c.passed,
+          detail: c.results.map(r => ({ step: r.name, passed: r.passed,
+            error: r.error, ms: r.durationMs })) })) };
+    }));
+  on('#btnMcpRegression', () => mcpAction($('#btnMcpRegression'), '#mcpOutRun',
+    async () => {
+      const d = await post('/api/mcp/regression');
+      loadMcpStatus();
+      return d;
+    }));
+  $$('.mcp-sub').forEach(b => b.addEventListener('click', () => setMcpPanel(b.dataset.msub)));
 }
 
 /* ---------- 用户中心：二级菜单与二级页面 ---------- */
@@ -1642,6 +1748,9 @@ function bindEvents() {
     if (b.dataset.page === 'users') {
       setUsersMenuOpen(true);
       switchPage('users', state.usersSub || 'profile');
+    } else if (b.dataset.page === 'mcp') {
+      setMcpMenuOpen(true);
+      switchPage('mcp', state.mcpSub || 'contract');
     } else {
       switchPage(b.dataset.page);
     }
@@ -1653,6 +1762,7 @@ function bindEvents() {
 
   // 顶栏
   $('#btnReload').addEventListener('click', doReload);
+  bindMcpEvents();
   $('#btnReload2').addEventListener('click', doReload);
 
   // 测试用例页 —— 搜索（用例名称 / 接口名称 / 标签 组合筛选）

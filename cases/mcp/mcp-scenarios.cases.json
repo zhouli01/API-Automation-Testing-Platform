@@ -1,0 +1,117 @@
+{
+  "name": "MCP armory 场景级用例（4b · 状态依赖链路）",
+  "generatedBy": "mcp/generator",
+  "generatedAt": "2026-10-29 15:32:21",
+  "gateway": "http://10.12.7.250/api/mcp/gateway",
+  "scenarios": [
+    {
+      "name": "S1 包查询链（search→info→versions→max_semver）",
+      "desc": "参数级之外的业务链路：搜索包并提取名称，供后续工具复用",
+      "steps": [
+        {
+          "tool": "armory_package_search",
+          "args": {
+            "keyword": "armory",
+            "limit": 3
+          },
+          "extract": {
+            "pkgName": "result.content.0.text => packages.0.name",
+            "ns": "result.content.0.text => packages.0.namespace"
+          },
+          "desc": "搜索 armory 包，提取 namespace/name"
+        },
+        {
+          "tool": "armory_package_info",
+          "args": {
+            "namespace": "{{ns}}",
+            "name": "{{pkgName}}"
+          },
+          "extract": {},
+          "desc": "用上一步提取的参数查包详情"
+        },
+        {
+          "tool": "armory_package_versions",
+          "args": {
+            "namespace": "{{ns}}",
+            "name": "{{pkgName}}"
+          },
+          "extract": {},
+          "desc": "查询包版本列表"
+        },
+        {
+          "tool": "armory_version_max_semver",
+          "args": {
+            "namespace": "{{ns}}",
+            "name": "{{pkgName}}"
+          },
+          "extract": {},
+          "desc": "查询最新语义化版本"
+        }
+      ]
+    },
+    {
+      "name": "S2 平台元数据链（platform_list→arch_list→system_info）",
+      "desc": "只读元数据链路，验证平台/架构基础数据一致性",
+      "steps": [
+        {
+          "tool": "armory_platform_list",
+          "args": {},
+          "extract": {
+            "plat": "result.content.0.text => 0.name"
+          },
+          "desc": "平台列表，尝试提取首个平台名"
+        },
+        {
+          "tool": "armory_arch_list",
+          "args": {},
+          "extract": {},
+          "desc": "架构列表"
+        },
+        {
+          "tool": "armory_system_info",
+          "args": {},
+          "extract": {},
+          "desc": "系统信息"
+        }
+      ]
+    },
+    {
+      "name": "S3 命名空间链（namespace_list→info→members→packages）",
+      "desc": "命名空间维度链路：列表提取名称后逐层下钻",
+      "steps": [
+        {
+          "tool": "armory_namespace_list",
+          "args": {},
+          "extract": {
+            "nsName": "result.content.0.text => 0.name"
+          },
+          "desc": "命名空间列表，提取首个名称"
+        },
+        {
+          "tool": "armory_namespace_info",
+          "args": {
+            "name": "{{nsName}}"
+          },
+          "extract": {},
+          "desc": "命名空间详情"
+        },
+        {
+          "tool": "armory_namespace_members",
+          "args": {
+            "name": "{{nsName}}"
+          },
+          "extract": {},
+          "desc": "命名空间成员"
+        },
+        {
+          "tool": "armory_namespace_packages_list",
+          "args": {
+            "namespace": "{{nsName}}"
+          },
+          "extract": {},
+          "desc": "命名空间下的包列表"
+        }
+      ]
+    }
+  ]
+}

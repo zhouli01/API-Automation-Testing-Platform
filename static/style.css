@@ -920,3 +920,15 @@ table.dt.dt-hs .row-actions .btn.sm { padding: 6px 12px; font-size: 12.5px; font
 .uact button.danger:hover { border-color: var(--bad); color: var(--bad); background: var(--bad-soft); }
 .uact button:disabled { opacity: .45; cursor: not-allowed; }
 .uact button:disabled:hover { border-color: var(--border); color: var(--text-dim); background: var(--bg-soft); }
+
+/* ---- MCP 测试（契约驱动）输出面板 ---- */
+.mcp-out {
+  font-family: var(--mono, Consolas, monospace);
+  font-size: 12px; line-height: 1.6;
+  background: var(--bg-tertiary, #f6f6f4);
+  border: 0.5px solid var(--border-tertiary, rgba(0,0,0,.15));
+  border-radius: 8px; padding: 12px 14px;
+  max-height: 420px; overflow: auto;
+  white-space: pre-wrap; word-break: break-all;
+  margin: 0;
+}

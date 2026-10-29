@@ -72,6 +72,21 @@
       </div>
     </div>
 
+    <!-- MCP 测试（契约驱动）：契约发现 / 参数用例 / 场景用例 / 一键回归 / Schema Diff -->
+    <div class="menu-group" id="menuGroupMcp">
+      <button class="menu-item" data-page="mcp" data-sub="contract" id="menuMcpRoot">
+        <span class="mi-icon">⟐</span><span class="mi-text">MCP 测试</span>
+        <span class="mi-caret">▾</span>
+      </button>
+      <div class="submenu" id="mcpSubmenu" hidden>
+        <button class="mcp-sub active" data-msub="contract">① 契约发现</button>
+        <button class="mcp-sub" data-msub="params">② 参数级用例</button>
+        <button class="mcp-sub" data-msub="scenarios">③ 场景级用例</button>
+        <button class="mcp-sub" data-msub="run">④ 一键回归</button>
+        <button class="mcp-sub" data-msub="diff">⑤ Schema Diff</button>
+      </div>
+    </div>
+
     <div class="menu-foot">
       <div class="mf-label">用例目录</div>
       <div class="mf-path" id="caseDirText"></div>
@@ -264,6 +279,84 @@
               平台数据保存在 <code>apifox-test-platform/data/</code> 下（meta.json / history.json / scenarios.json）
             </div>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- MCP 测试（契约驱动） ---------------- -->
+    <section class="page" id="page-mcp" hidden>
+      <div class="page-head">
+        <h2 id="mcpTitle">契约发现</h2>
+        <span class="page-desc" id="mcpPageDesc">从 MCP Server tools/list 自动提取接口契约</span>
+      </div>
+
+      <!-- ① 契约发现 -->
+      <div class="users-panel" id="mcpPanel-contract">
+        <div class="card">
+          <div class="card-head">契约发现（第 1 步）<em>调 tools/list 导出 contract.json，与上次快照 diff</em></div>
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <span class="fb-count" id="mcpGatewayText">网关：—</span>
+            </div>
+            <div class="toolbar-right">
+              <button class="btn primary sm" id="btnMcpDiscover">发现并导出契约</button>
+              <button class="btn ghost sm" id="btnMcpDiffQuick">仅查看 Diff</button>
+            </div>
+          </div>
+          <pre class="mcp-out" id="mcpOutContract">尚未执行契约发现。</pre>
+        </div>
+      </div>
+
+      <!-- ② 参数级用例 -->
+      <div class="users-panel" id="mcpPanel-params" hidden>
+        <div class="card">
+          <div class="card-head">参数级用例生成（第 2/4a 步）<em>规则批量：缺必填 / 类型错误 / 只读正常路径 / 未知工具</em></div>
+          <div class="toolbar">
+            <div class="toolbar-right">
+              <button class="btn primary sm" id="btnMcpGenParams">重新生成参数级用例</button>
+            </div>
+          </div>
+          <pre class="mcp-out" id="mcpOutParams">尚未生成。生成后自动进入用例库（mcp-armory.cases.json），可在「测试用例」页执行。</pre>
+        </div>
+      </div>
+
+      <!-- ③ 场景级用例 -->
+      <div class="users-panel" id="mcpPanel-scenarios" hidden>
+        <div class="card">
+          <div class="card-head">场景级链路（第 4b 步）<em>状态依赖：上一步输出提取为变量喂给下一步</em></div>
+          <div class="toolbar">
+            <div class="toolbar-right">
+              <button class="btn ghost sm" id="btnMcpGenScen">生成场景链路</button>
+              <button class="btn primary sm" id="btnMcpRunScen">执行场景链路</button>
+            </div>
+          </div>
+          <pre class="mcp-out" id="mcpOutScen">尚未生成。内置 3 条只读链路：包查询链 / 平台元数据链 / 命名空间链。</pre>
+        </div>
+      </div>
+
+      <!-- ④ 一键回归 -->
+      <div class="users-panel" id="mcpPanel-run" hidden>
+        <div class="card">
+          <div class="card-head">一键回归（第 5 步）<em>契约发现 → diff → 重新生成参数用例 → 全量执行（4a + 4b）</em></div>
+          <div class="toolbar">
+            <div class="toolbar-right">
+              <button class="btn primary sm" id="btnMcpRegression">开始一键回归</button>
+            </div>
+          </div>
+          <pre class="mcp-out" id="mcpOutRun">点击「开始一键回归」运行完整流水线，结果会写入运行记录。</pre>
+        </div>
+      </div>
+
+      <!-- ⑤ Schema Diff -->
+      <div class="users-panel" id="mcpPanel-diff" hidden>
+        <div class="card">
+          <div class="card-head">Schema Diff（第 6 步）<em>对比当前 tools/list 与上次快照：新增 / 删除 / 变更 → 告警需更新的用例</em></div>
+          <div class="toolbar">
+            <div class="toolbar-right">
+              <button class="btn primary sm" id="btnMcpDiff">立即 Diff</button>
+            </div>
+          </div>
+          <pre class="mcp-out" id="mcpOutDiff">点击「立即 Diff」检查接口契约是否发生变化。</pre>
         </div>
       </div>
     </section>

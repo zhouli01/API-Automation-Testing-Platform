@@ -7,6 +7,7 @@ from fastapi import APIRouter, Request
 from .config import CASE_DIR
 from .modules.cases.router import router as cases_router
 from .modules.history.router import router as history_router
+from .modules.mcp.router import router as mcp_router
 from .modules.scenarios.router import router as scenarios_router
 from .modules.settings.router import router as settings_router
 from .modules.users.router import router as users_router
@@ -31,4 +32,5 @@ def register_routers(app):
     app.include_router(history_router)    # 运行记录
     app.include_router(settings_router)   # 系统设置
     app.include_router(users_router)      # 用户中心
+    app.include_router(mcp_router)        # MCP 测试（契约驱动）
     app.include_router(meta_router)       # /api/health

@@ -59,3 +59,33 @@ STATIC_TYPES = {
     '.ico': 'image/x-icon',
     '.woff2': 'font/woff2',
 }
+
+# ================================================================ MCP 测试模块（契约驱动）
+# 网关地址 / 认证：环境变量优先，其次 ~/.workbuddy/mcp.json 的 acohub 配置
+def _mcp_gateway():
+    url = os.environ.get('MCP_GATEWAY_URL')
+    auth = os.environ.get('MCP_GATEWAY_AUTH')
+    if url and auth:
+        return url, auth
+    try:
+        cfg = _json.load(open(os.path.expanduser('~/.workbuddy/mcp.json'), encoding='utf-8'))
+        aco = (cfg.get('mcpServers') or {}).get('acohub') or {}
+        return (url or aco.get('url') or ''), (auth or ((aco.get('headers') or {}).get('Authorization') or ''))
+    except Exception:  # noqa: BLE001
+        return url or '', auth or ''
+
+
+import json as _json  # noqa: E402
+_MCP_URL, _MCP_AUTH = _mcp_gateway()
+
+MCP_GATEWAY_URL = _MCP_URL
+MCP_GATEWAY_AUTH = _MCP_AUTH
+MCP_TOOL_PREFIX = os.environ.get('MCP_TOOL_PREFIX', 'armory_')
+MCP_TIMEOUT_S = float(os.environ.get('MCP_TIMEOUT_S', '20'))
+
+# MCP 相关产物路径
+MCP_DIR = os.path.join(CASE_DIR, 'mcp') if os.path.isdir(CASE_DIR) or CASE_DIR else os.path.join(BASE_DIR, 'cases', 'mcp')
+MCP_CONTRACT_FILE = os.path.join(MCP_DIR, 'contract.json')
+MCP_PARAM_CASES_FILE = os.path.join(MCP_DIR, 'mcp-armory.cases.json')
+MCP_SCENARIO_FILE = os.path.join(MCP_DIR, 'mcp-scenarios.cases.json')
+MCP_SNAPSHOT_FILE = os.path.join(DATA_DIR, 'mcp_contract_snapshot.json')
