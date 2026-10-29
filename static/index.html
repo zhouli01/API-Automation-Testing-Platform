@@ -79,11 +79,11 @@
         <span class="mi-caret">▾</span>
       </button>
       <div class="submenu" id="mcpSubmenu" hidden>
-        <button class="mcp-sub active" data-msub="contract">① 契约发现</button>
-        <button class="mcp-sub" data-msub="params">② 参数级用例</button>
-        <button class="mcp-sub" data-msub="scenarios">③ 场景级用例</button>
-        <button class="mcp-sub" data-msub="run">④ 一键回归</button>
-        <button class="mcp-sub" data-msub="diff">⑤ Schema Diff</button>
+        <button class="submenu-item mcp-sub active" data-msub="contract">① 契约发现</button>
+        <button class="submenu-item mcp-sub" data-msub="params">② 参数级用例</button>
+        <button class="submenu-item mcp-sub" data-msub="scenarios">③ 场景级用例</button>
+        <button class="submenu-item mcp-sub" data-msub="run">④ 一键回归</button>
+        <button class="submenu-item mcp-sub" data-msub="diff">⑤ Schema Diff</button>
       </div>
     </div>
 
@@ -304,6 +304,8 @@
             </div>
           </div>
           <pre class="mcp-out" id="mcpOutContract">尚未执行契约发现。</pre>
+          <div class="card-head" style="margin-top:14px">发现的工具清单<em id="mcpToolCount"></em></div>
+          <div class="table-wrap" id="mcpToolTable">尚未发现契约。</div>
         </div>
       </div>
 

@@ -288,7 +288,29 @@ function setMcpPanel(sub) {
   });
   if ($('#mcpTitle')) $('#mcpTitle').textContent = MCP_PANELS[name][0];
   if ($('#mcpPageDesc')) $('#mcpPageDesc').textContent = MCP_PANELS[name][1];
-  if (name === 'contract') loadMcpStatus();
+  if (name === 'contract') { loadMcpStatus(); loadMcpTools(); }
+}
+
+async function loadMcpTools() {
+  const box = $('#mcpToolTable');
+  if (!box) return;
+  try {
+    const d = await api('/api/mcp/tools');
+    $('#mcpToolCount').textContent = `共 ${d.total} 个工具（发现于 ${d.generatedAt}）`;
+    box.innerHTML =
+      '<table class="dt"><thead><tr>' +
+      '<th style="width:230px">工具名称</th><th>description</th><th style="width:220px">必填参数</th>' +
+      '</tr></thead><tbody>' +
+      d.tools.map(t =>
+        '<tr><td><b>' + esc(t.name) + '</b></td>' +
+        '<td>' + esc(t.description || '—') + '</td>' +
+        '<td>' + (t.required.length ? t.required.map(r => '<span class="env-chip">' + esc(r) + '</span>').join(' ') : '<span style="opacity:.5">无</span>') + '</td></tr>'
+      ).join('') +
+      '</tbody></table>';
+  } catch (e) {
+    box.textContent = e.message.includes('尚未') ? '尚未发现契约，请先点击上方「发现并导出契约」。' : '加载失败：' + e.message;
+    $('#mcpToolCount').textContent = '';
+  }
 }
 
 async function loadMcpStatus() {
@@ -338,6 +360,7 @@ function bindMcpEvents() {
   on('#btnMcpDiscover', () => mcpAction($('#btnMcpDiscover'), '#mcpOutContract',
     async () => {
       const d = await post('/api/mcp/discover');
+      loadMcpStatus(); loadMcpTools();
       return { 工具总数: d.toolCount, armory工具: d.armoryToolCount, diff: d.diff };
     }));
   on('#btnMcpDiffQuick', () => mcpAction($('#btnMcpDiffQuick'), '#mcpOutContract',
@@ -375,7 +398,7 @@ function setUsersMenuOpen(open) {
 function setUsersPanel(sub) {
   const name = sub === 'list' ? 'list' : 'profile';
   state.usersSub = name;
-  $$('.submenu-item').forEach(b => b.classList.toggle('active', b.dataset.sub === name));
+  $$('#usersSubmenu .submenu-item').forEach(b => b.classList.toggle('active', b.dataset.sub === name));
   if ($('#panelProfile')) $('#panelProfile').hidden = name !== 'profile';
   if ($('#panelList')) $('#panelList').hidden = name !== 'list';
   if ($('#usersTitle')) $('#usersTitle').textContent = name === 'list' ? '用户列表' : '个人资料';

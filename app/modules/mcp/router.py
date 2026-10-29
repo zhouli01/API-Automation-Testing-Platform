@@ -50,6 +50,20 @@ def _ping():
         return False
 
 
+@router.get('/tools', summary='契约发现的工具清单（名称 / 描述 / 必填参数）')
+def list_tools(_user: dict = Depends(require_user)):
+    contract = contract_mod.load_contract()
+    if not contract:
+        raise ApiError(400, '尚未进行契约发现，请先在「契约发现」页执行')
+    return {'ok': True, 'generatedAt': contract.get('generatedAt'),
+            'gateway': MCP_GATEWAY_URL,
+            'total': contract.get('armoryToolCount') or len(contract.get('tools') or []),
+            'tools': [{'name': t['name'],
+                       'description': (t.get('description') or '').strip(),
+                       'required': t.get('required') or []}
+                      for t in contract.get('tools') or []]}
+
+
 @router.post('/discover', summary='第 1 步 · 契约发现：tools/list 导出 contract.json 并 diff')
 def discover(_user: dict = Depends(require_user)):
     try:
