@@ -291,27 +291,50 @@ function setMcpPanel(sub) {
   if (name === 'contract') { loadMcpStatus(); loadMcpTools(); }
 }
 
+let _mcpToolPage = 1;
+const MCP_TOOL_PAGE_SIZE = 10;
+
 async function loadMcpTools() {
   const box = $('#mcpToolTable');
   if (!box) return;
   try {
     const d = await api('/api/mcp/tools');
+    _mcpTools = d.tools;
     $('#mcpToolCount').textContent = `共 ${d.total} 个工具（发现于 ${d.generatedAt}）`;
-    box.innerHTML =
-      '<table class="dt"><thead><tr>' +
-      '<th style="width:230px">工具名称</th><th>description</th><th style="width:220px">必填参数</th>' +
-      '</tr></thead><tbody>' +
-      d.tools.map(t =>
-        '<tr><td><b>' + esc(t.name) + '</b></td>' +
-        '<td>' + esc(t.description || '—') + '</td>' +
-        '<td>' + (t.required.length ? t.required.map(r => '<span class="env-chip">' + esc(r) + '</span>').join(' ') : '<span style="opacity:.5">无</span>') + '</td></tr>'
-      ).join('') +
-      '</tbody></table>';
+    renderMcpToolPage(1);
   } catch (e) {
     box.textContent = e.message.includes('尚未') ? '尚未发现契约，请先点击上方「发现并导出契约」。' : '加载失败：' + e.message;
     $('#mcpToolCount').textContent = '';
   }
 }
+
+function renderMcpToolPage(page) {
+  const box = $('#mcpToolTable');
+  if (!box || !_mcpTools) return;
+  const total = _mcpTools.length;
+  const pages = Math.max(1, Math.ceil(total / MCP_TOOL_PAGE_SIZE));
+  _mcpToolPage = Math.min(Math.max(1, page), pages);
+  const start = (_mcpToolPage - 1) * MCP_TOOL_PAGE_SIZE;
+  const rows = _mcpTools.slice(start, start + MCP_TOOL_PAGE_SIZE);
+  box.innerHTML =
+    '<table class="dt"><thead><tr>' +
+    '<th style="width:60px">#</th><th style="width:230px">工具名称</th><th>description</th><th style="width:220px">必填参数</th>' +
+    '</tr></thead><tbody>' +
+    rows.map((t, i) =>
+      '<tr><td class="ta-c">' + (start + i + 1) + '</td>' +
+      '<td><b>' + esc(t.name) + '</b></td>' +
+      '<td>' + esc(t.description || '—') + '</td>' +
+      '<td>' + (t.required.length ? t.required.map(r => '<span class="env-chip">' + esc(r) + '</span>').join(' ') : '<span style="opacity:.5">无</span>') + '</td></tr>'
+    ).join('') +
+    '</tbody></table>' +
+    '<div class="mcp-pager">' +
+    '<button class="btn ghost sm" data-mtp="' + (_mcpToolPage - 1) + '"' + (_mcpToolPage <= 1 ? ' disabled' : '') + '>上一页</button>' +
+    '<span>第 ' + _mcpToolPage + ' / ' + pages + ' 页（本页 ' + rows.length + ' 条，共 ' + total + ' 条）</span>' +
+    '<button class="btn ghost sm" data-mtp="' + (_mcpToolPage + 1) + '"' + (_mcpToolPage >= pages ? ' disabled' : '') + '>下一页</button>' +
+    '</div>';
+}
+
+let _mcpTools = null;
 
 async function loadMcpStatus() {
   try {
@@ -387,6 +410,11 @@ function bindMcpEvents() {
       return d;
     }));
   $$('.mcp-sub').forEach(b => b.addEventListener('click', () => setMcpPanel(b.dataset.msub)));
+  const table = $('#mcpToolTable');
+  if (table) table.addEventListener('click', e => {
+    const btn = e.target.closest && e.target.closest('[data-mtp]');
+    if (btn) renderMcpToolPage(Number(btn.dataset.mtp));
+  });
 }
 
 /* ---------- 用户中心：二级菜单与二级页面 ---------- */

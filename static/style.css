@@ -932,3 +932,7 @@ table.dt.dt-hs .row-actions .btn.sm { padding: 6px 12px; font-size: 12.5px; font
   white-space: pre-wrap; word-break: break-all;
   margin: 0;
 }
+.mcp-pager {
+  display: flex; align-items: center; gap: 12px; justify-content: center;
+  margin-top: 10px; font-size: 13px; opacity: .85;
+}

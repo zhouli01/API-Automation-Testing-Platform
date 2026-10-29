@@ -1,44 +1,10 @@
 {
   "source": "tools/list (MCP 2024-11-05)",
-  "generatedAt": "2026-10-29 15:50:03",
+  "generatedAt": "2026-10-29 17:43:18",
   "toolPrefix": "armory_",
-  "toolCount": 300,
+  "toolCount": 301,
   "armoryToolCount": 101,
   "tools": [
-    {
-      "name": "armory_namespace_add_members",
-      "description": "批量添加空间成员。对应 API: POST /v1/namespaces/members",
-      "required": [
-        "namespace",
-        "userIds"
-      ],
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": false,
-        "properties": {
-          "namespace": {
-            "description": "命名空间名称",
-            "type": "string"
-          },
-          "repoName": {
-            "description": "仓库别名，不指定则用当前激活的",
-            "type": "string"
-          },
-          "userIds": {
-            "description": "用户 ID 列表",
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          }
-        },
-        "required": [
-          "namespace",
-          "userIds"
-        ],
-        "type": "object"
-      }
-    },
     {
       "name": "armory_issue_update_status",
       "description": "更新问题状态（open/close）。对应 API: PUT /issues",
@@ -3312,6 +3278,40 @@
         "required": [
           "namespace",
           "name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "armory_namespace_add_members",
+      "description": "批量添加空间成员。对应 API: POST /v1/namespaces/members",
+      "required": [
+        "namespace",
+        "userIds"
+      ],
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "namespace": {
+            "description": "命名空间名称",
+            "type": "string"
+          },
+          "repoName": {
+            "description": "仓库别名，不指定则用当前激活的",
+            "type": "string"
+          },
+          "userIds": {
+            "description": "用户 ID 列表",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "namespace",
+          "userIds"
         ],
         "type": "object"
       }
