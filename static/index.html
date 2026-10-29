@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>接口自动化测试平台</title>
+<link rel="icon" href="data:," />
 <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
@@ -314,11 +315,14 @@
         <div class="card">
           <div class="card-head">参数级用例生成（第 2/4a 步）<em>规则批量：缺必填 / 类型错误 / 只读正常路径 / 未知工具</em></div>
           <div class="toolbar">
+            <div class="toolbar-left"><span class="fb-count" id="mcpParamsMeta">—</span></div>
             <div class="toolbar-right">
               <button class="btn primary sm" id="btnMcpGenParams">重新生成参数级用例</button>
             </div>
           </div>
-          <pre class="mcp-out" id="mcpOutParams">尚未生成。生成后自动进入用例库（mcp-armory.cases.json），可在「测试用例」页执行。</pre>
+          <div class="mcp-stats" id="mcpParamsCats"></div>
+          <div class="table-wrap" id="mcpParamsTable">尚未生成参数级用例。</div>
+          <pre class="mcp-out sm" id="mcpOutParams" hidden></pre>
         </div>
       </div>
 
@@ -327,12 +331,14 @@
         <div class="card">
           <div class="card-head">场景级链路（第 4b 步）<em>状态依赖：上一步输出提取为变量喂给下一步</em></div>
           <div class="toolbar">
+            <div class="toolbar-left"><span class="fb-count" id="mcpScenMeta">—</span></div>
             <div class="toolbar-right">
               <button class="btn ghost sm" id="btnMcpGenScen">生成场景链路</button>
               <button class="btn primary sm" id="btnMcpRunScen">执行场景链路</button>
             </div>
           </div>
-          <pre class="mcp-out" id="mcpOutScen">尚未生成。内置 3 条只读链路：包查询链 / 平台元数据链 / 命名空间链。</pre>
+          <div class="table-wrap" id="mcpScenTable">尚未生成场景链路。</div>
+          <pre class="mcp-out sm" id="mcpOutScen" hidden></pre>
         </div>
       </div>
 
@@ -341,11 +347,13 @@
         <div class="card">
           <div class="card-head">一键回归（第 5 步）<em>契约发现 → diff → 重新生成参数用例 → 全量执行（4a + 4b）</em></div>
           <div class="toolbar">
+            <div class="toolbar-left"><span class="fb-count" id="mcpRunMeta">—</span></div>
             <div class="toolbar-right">
               <button class="btn primary sm" id="btnMcpRegression">开始一键回归</button>
             </div>
           </div>
-          <pre class="mcp-out" id="mcpOutRun">点击「开始一键回归」运行完整流水线，结果会写入运行记录。</pre>
+          <div class="table-wrap" id="mcpRunTable">暂无 MCP 运行记录。</div>
+          <pre class="mcp-out sm" id="mcpOutRun" hidden></pre>
         </div>
       </div>
 
@@ -354,11 +362,13 @@
         <div class="card">
           <div class="card-head">Schema Diff（第 6 步）<em>对比当前 tools/list 与上次快照：新增 / 删除 / 变更 → 告警需更新的用例</em></div>
           <div class="toolbar">
+            <div class="toolbar-left"><span class="fb-count" id="mcpDiffMeta">—</span></div>
             <div class="toolbar-right">
               <button class="btn primary sm" id="btnMcpDiff">立即 Diff</button>
             </div>
           </div>
-          <pre class="mcp-out" id="mcpOutDiff">点击「立即 Diff」检查接口契约是否发生变化。</pre>
+          <div class="table-wrap" id="mcpDiffTable">进入本页会自动与基线快照对比。</div>
+          <pre class="mcp-out sm" id="mcpOutDiff" hidden></pre>
         </div>
       </div>
     </section>

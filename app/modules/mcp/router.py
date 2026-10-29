@@ -64,6 +64,88 @@ def list_tools(_user: dict = Depends(require_user)):
                       for t in contract.get('tools') or []]}
 
 
+@router.get('/cases/summary', summary='已生成用例概览（4a 参数级 / 4b 场景级）')
+def cases_summary(_user: dict = Depends(require_user)):
+    return {'ok': True, 'gateway': MCP_GATEWAY_URL,
+            'params': _param_summary(), 'scenarios': _scenario_summary()}
+
+
+# 用例名 → 分类（与 generator 的命名规则一一对应）
+_CAT_RULES = (('缺必填', '缺必填'), ('类型错误', '类型错误'),
+              ('正常路径', '正常路径'), ('未知工具', '未知工具'))
+
+
+def _mtime(path):
+    import os
+    try:
+        return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.stat(path).st_mtime))
+    except OSError:
+        return ''
+
+
+def _param_summary():
+    try:
+        with open(MCP_PARAM_CASES_FILE, encoding='utf-8') as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {'exists': False, 'mtime': '', 'total': 0, 'categories': [], 'tools': []}
+    cases = data.get('cases') or []
+    cats: Dict[str, int] = {}
+    tools: Dict[str, dict] = {}
+    for c in cases:
+        name = c.get('name') or ''
+        cat = next((label for key, label in _CAT_RULES if key in name), '其他')
+        cats[cat] = cats.get(cat, 0) + 1
+        tool = c.get('apiPath') or '—'
+        it = tools.setdefault(tool, {'tool': tool, 'count': 0, 'cats': {}, 'sample': name})
+        it['count'] += 1
+        it['cats'][cat] = it['cats'].get(cat, 0) + 1
+    order = ['缺必填', '类型错误', '正常路径', '未知工具', '其他']
+    return {
+        'exists': True, 'mtime': _mtime(MCP_PARAM_CASES_FILE),
+        'file': 'cases/mcp/' + MCP_PARAM_CASES_FILE.replace('\\', '/').split('/')[-1],
+        'total': len(cases),
+        'categories': [{'name': k, 'count': cats[k]} for k in order if cats.get(k)],
+        'tools': sorted(tools.values(), key=lambda x: (-x['count'], x['tool'])),
+    }
+
+
+def _scenario_summary():
+    try:
+        with open(MCP_SCENARIO_FILE, encoding='utf-8') as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {'exists': False, 'mtime': '', 'chains': [], 'stepCount': 0}
+    chains = []
+    for s in data.get('scenarios') or []:
+        steps = s.get('steps') or []
+        chains.append({
+            'name': s.get('name') or '', 'desc': s.get('desc') or '',
+            'stepCount': len(steps),
+            'steps': [{'tool': st.get('tool') or '', 'desc': st.get('desc') or '',
+                       'args': st.get('args') or {}, 'extract': st.get('extract') or {}}
+                      for st in steps],
+        })
+    return {'exists': True, 'mtime': _mtime(MCP_SCENARIO_FILE),
+            'file': 'cases/mcp/' + MCP_SCENARIO_FILE.replace('\\', '/').split('/')[-1],
+            'chains': chains, 'stepCount': sum(c['stepCount'] for c in chains)}
+
+
+@router.get('/runs', summary='最近 MCP 运行记录（参数级 / 场景级回归）')
+def recent_runs(limit: int = 5, _user: dict = Depends(require_user)):
+    from ...store import history_summary, load_history, sorted_batches
+    out = []
+    try:
+        for b in sorted_batches(load_history()):
+            if str((b.get('source') or {}).get('type') or '').startswith('mcp'):
+                out.append(history_summary(b))
+            if len(out) >= max(1, min(limit, 20)):
+                break
+    except Exception:  # noqa: BLE001
+        pass
+    return {'ok': True, 'runs': out}
+
+
 @router.post('/discover', summary='第 1 步 · 契约发现：tools/list 导出 contract.json 并 diff')
 def discover(_user: dict = Depends(require_user)):
     try:

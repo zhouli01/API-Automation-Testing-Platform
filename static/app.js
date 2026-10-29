@@ -265,6 +265,16 @@ function switchPage(name, sub) {
 }
 
 /* ---------- MCP 测试（契约驱动）：二级菜单与五个环节面板 ---------- */
+/* 子页面数据缓存：切换到对应子菜单时按需拉取，避免每次重建 DOM */
+let _mcpTools = null;            // 契约工具清单
+let _mcpToolPage = 1;            // 工具清单当前页
+const MCP_TOOL_PAGE_SIZE = 10;   // 工具清单每页条数
+let _mcpParamSum = null;         // 参数级用例概览
+let _mcpParamPage = 1;
+const MCP_PARAM_PAGE_SIZE = 10;
+let _mcpScenSum = null;          // 场景级用例概览
+let _mcpDiffData = null;         // 最近一次 diff 结果
+
 function setMcpMenuOpen(open) {
   if ($('#mcpSubmenu')) $('#mcpSubmenu').hidden = !open;
   if ($('#menuGroupMcp')) $('#menuGroupMcp').classList.toggle('open', open);
@@ -281,61 +291,51 @@ const MCP_PANELS = {
 function setMcpPanel(sub) {
   const name = MCP_PANELS[sub] ? sub : 'contract';
   state.mcpSub = name;
-  $$('.mcp-sub').forEach(b => b.classList.toggle('active', b.dataset.msub === name));
+  $$('#mcpSubmenu .mcp-sub').forEach(b => b.classList.toggle('active', b.dataset.msub === name));
   Object.keys(MCP_PANELS).forEach(k => {
     const el = $('#mcpPanel-' + k);
     if (el) el.hidden = k !== name;
   });
   if ($('#mcpTitle')) $('#mcpTitle').textContent = MCP_PANELS[name][0];
   if ($('#mcpPageDesc')) $('#mcpPageDesc').textContent = MCP_PANELS[name][1];
-  if (name === 'contract') { loadMcpStatus(); loadMcpTools(); }
+  loadMcpPanel(name);
 }
 
-let _mcpToolPage = 1;
-const MCP_TOOL_PAGE_SIZE = 10;
+/* 切到哪个子页面就加载哪个子页面的数据（以前只有契约页会加载，其余 4 页是空白占位） */
+function loadMcpPanel(name) {
+  if (name === 'contract') { loadMcpStatus(); loadMcpTools(); return; }
+  if (name === 'params') { loadMcpSummary().then(s => s && renderMcpParams(s.params)); return; }
+  if (name === 'scenarios') { loadMcpSummary().then(s => s && renderMcpScen(s.scenarios)); return; }
+  if (name === 'run') { loadMcpSummary().then(() => loadMcpRuns()); return; }
+  if (name === 'diff') { loadMcpDiff(); }
+}
 
-async function loadMcpTools() {
-  const box = $('#mcpToolTable');
-  if (!box) return;
+async function loadMcpSummary() {
   try {
-    const d = await api('/api/mcp/tools');
-    _mcpTools = d.tools;
-    $('#mcpToolCount').textContent = `共 ${d.total} 个工具（发现于 ${d.generatedAt}）`;
-    renderMcpToolPage(1);
+    const d = await api('/api/mcp/cases/summary');
+    _mcpParamSum = d.params;
+    _mcpScenSum = d.scenarios;
+    return d;
   } catch (e) {
-    box.textContent = e.message.includes('尚未') ? '尚未发现契约，请先点击上方「发现并导出契约」。' : '加载失败：' + e.message;
-    $('#mcpToolCount').textContent = '';
+    return null;
   }
 }
 
-function renderMcpToolPage(page) {
-  const box = $('#mcpToolTable');
-  if (!box || !_mcpTools) return;
-  const total = _mcpTools.length;
-  const pages = Math.max(1, Math.ceil(total / MCP_TOOL_PAGE_SIZE));
-  _mcpToolPage = Math.min(Math.max(1, page), pages);
-  const start = (_mcpToolPage - 1) * MCP_TOOL_PAGE_SIZE;
-  const rows = _mcpTools.slice(start, start + MCP_TOOL_PAGE_SIZE);
-  box.innerHTML =
-    '<table class="dt"><thead><tr>' +
-    '<th style="width:60px">#</th><th style="width:230px">工具名称</th><th>description</th><th style="width:220px">必填参数</th>' +
-    '</tr></thead><tbody>' +
-    rows.map((t, i) =>
-      '<tr><td class="ta-c">' + (start + i + 1) + '</td>' +
-      '<td><b>' + esc(t.name) + '</b></td>' +
-      '<td>' + esc(t.description || '—') + '</td>' +
-      '<td>' + (t.required.length ? t.required.map(r => '<span class="env-chip">' + esc(r) + '</span>').join(' ') : '<span style="opacity:.5">无</span>') + '</td></tr>'
-    ).join('') +
-    '</tbody></table>' +
-    '<div class="mcp-pager">' +
-    '<button class="btn ghost sm" data-mtp="' + (_mcpToolPage - 1) + '"' + (_mcpToolPage <= 1 ? ' disabled' : '') + '>上一页</button>' +
-    '<span>第 ' + _mcpToolPage + ' / ' + pages + ' 页（本页 ' + rows.length + ' 条，共 ' + total + ' 条）</span>' +
-    '<button class="btn ghost sm" data-mtp="' + (_mcpToolPage + 1) + '"' + (_mcpToolPage >= pages ? ' disabled' : '') + '>下一页</button>' +
+function mcpChips(items) {
+  return items.map(([label, value, kind]) =>
+    '<span class="mcp-chip' + (kind ? ' ' + kind : '') + '">' + esc(label) +
+    ' <b>' + esc(value) + '</b></span>').join('');
+}
+
+function mcpPager(attr, page, pages, total, rows) {
+  return '<div class="mcp-pager">' +
+    '<button class="btn ghost sm" data-' + attr + '="' + (page - 1) + '"' + (page <= 1 ? ' disabled' : '') + '>上一页</button>' +
+    '<span>第 ' + page + ' / ' + pages + ' 页（本页 ' + rows + ' 条，共 ' + total + ' 条）</span>' +
+    '<button class="btn ghost sm" data-' + attr + '="' + (page + 1) + '"' + (page >= pages ? ' disabled' : '') + '>下一页</button>' +
     '</div>';
 }
 
-let _mcpTools = null;
-
+/* ---------- ① 契约发现：状态 + 工具清单（每页 10 条） ---------- */
 async function loadMcpStatus() {
   try {
     const s = await api('/api/mcp/status');
@@ -347,7 +347,336 @@ async function loadMcpStatus() {
   }
 }
 
+async function loadMcpTools() {
+  const box = $('#mcpToolTable');
+  if (!box) return;
+  try {
+    const d = await api('/api/mcp/tools');
+    _mcpTools = d.tools || [];
+    if ($('#mcpToolCount')) $('#mcpToolCount').textContent = `共 ${d.total} 个工具（发现于 ${d.generatedAt}）`;
+    renderMcpToolPage(1);
+  } catch (e) {
+    _mcpTools = null;
+    box.textContent = e.message.includes('尚未') ? '尚未发现契约，请先点击上方「发现并导出契约」。' : '加载失败：' + e.message;
+    if ($('#mcpToolCount')) $('#mcpToolCount').textContent = '';
+  }
+}
+
+function renderMcpToolPage(page) {
+  const box = $('#mcpToolTable');
+  if (!box || !_mcpTools) return;
+  const total = _mcpTools.length;
+  const pages = Math.max(1, Math.ceil(total / MCP_TOOL_PAGE_SIZE));
+  _mcpToolPage = Math.min(Math.max(1, page || 1), pages);
+  const start = (_mcpToolPage - 1) * MCP_TOOL_PAGE_SIZE;
+  const rows = _mcpTools.slice(start, start + MCP_TOOL_PAGE_SIZE);
+  box.innerHTML =
+    '<table class="dt"><thead><tr>' +
+    '<th style="width:60px">#</th><th style="width:250px">工具名称</th><th>description</th><th style="width:210px">必填参数</th>' +
+    '</tr></thead><tbody>' +
+    rows.map((t, i) =>
+      '<tr><td class="ta-c">' + (start + i + 1) + '</td>' +
+      '<td><b>' + esc(t.name) + '</b></td>' +
+      '<td>' + esc(t.description || '—') + '</td>' +
+      '<td>' + ((t.required || []).length
+        ? t.required.map(r => '<span class="env-chip">' + esc(r) + '</span>').join(' ')
+        : '<span style="opacity:.5">无</span>') + '</td></tr>'
+    ).join('') +
+    '</tbody></table>' + mcpPager('mtp', _mcpToolPage, pages, total, rows.length);
+}
+
+/* ---------- ② 参数级用例（4a） ---------- */
+function renderMcpParams(sum) {
+  const box = $('#mcpParamsTable');
+  if (!box) return;
+  if (!sum || !sum.exists || !sum.total) {
+    if ($('#mcpParamsMeta')) $('#mcpParamsMeta').textContent = '尚未生成参数级用例';
+    if ($('#mcpParamsCats')) $('#mcpParamsCats').innerHTML = '';
+    box.textContent = '尚未生成参数级用例，点击右上角「重新生成参数级用例」。';
+    return;
+  }
+  if ($('#mcpParamsMeta')) $('#mcpParamsMeta').textContent =
+    `共 ${sum.total} 条 ｜ ${sum.tools.length} 个工具 ｜ 生成于 ${sum.mtime} ｜ ${sum.file}`;
+  if ($('#mcpParamsCats')) {
+    $('#mcpParamsCats').innerHTML = mcpChips(
+      sum.categories.map(c => [c.name, c.count])
+        .concat([['合计', sum.total, 'ok']]));
+  }
+  const total = sum.tools.length;
+  const pages = Math.max(1, Math.ceil(total / MCP_PARAM_PAGE_SIZE));
+  _mcpParamPage = Math.min(Math.max(1, _mcpParamPage || 1), pages);
+  const start = (_mcpParamPage - 1) * MCP_PARAM_PAGE_SIZE;
+  const rows = sum.tools.slice(start, start + MCP_PARAM_PAGE_SIZE);
+  box.innerHTML =
+    '<table class="dt"><thead><tr>' +
+    '<th style="width:60px">#</th><th style="width:290px">工具</th><th style="width:80px">用例数</th>' +
+    '<th style="width:230px">用例分类</th><th>用例示例</th>' +
+    '</tr></thead><tbody>' +
+    rows.map((t, i) =>
+      '<tr><td class="ta-c">' + (start + i + 1) + '</td>' +
+      '<td><b>' + esc(t.tool) + '</b></td>' +
+      '<td class="ta-c">' + t.count + '</td>' +
+      '<td>' + Object.keys(t.cats).map(k =>
+        '<span class="env-chip">' + esc(k) + ' ×' + t.cats[k] + '</span>').join(' ') + '</td>' +
+      '<td style="opacity:.75">' + esc(t.sample) + '</td></tr>'
+    ).join('') +
+    '</tbody></table>' + mcpPager('mpp', _mcpParamPage, pages, total, rows.length);
+}
+
+/* ---------- ③ 场景级用例（4b） ---------- */
+function renderMcpScen(sum) {
+  const box = $('#mcpScenTable');
+  if (!box) return;
+  if (!sum || !sum.exists || !sum.chains.length) {
+    if ($('#mcpScenMeta')) $('#mcpScenMeta').textContent = '尚未生成场景链路';
+    box.textContent = '尚未生成场景链路，点击右上角「生成场景链路」。';
+    return;
+  }
+  if ($('#mcpScenMeta')) $('#mcpScenMeta').textContent =
+    `共 ${sum.chains.length} 条链路 / ${sum.stepCount} 个步骤 ｜ 生成于 ${sum.mtime} ｜ ${sum.file}`;
+  box.innerHTML =
+    '<table class="dt"><thead><tr>' +
+    '<th style="width:250px">链路</th><th style="width:250px">说明</th><th style="width:70px">步骤</th><th>步骤链（tool → tool）</th>' +
+    '</tr></thead><tbody>' +
+    sum.chains.map(c =>
+      '<tr><td><b>' + esc(c.name) + '</b></td>' +
+      '<td style="opacity:.75">' + esc(c.desc || '—') + '</td>' +
+      '<td class="ta-c">' + c.stepCount + '</td>' +
+      '<td>' + c.steps.map((s, i) =>
+        (i ? ' <span style="opacity:.4">→</span> ' : '') +
+        '<span class="env-chip">' + esc(s.tool) + '</span>').join('') + '</td></tr>'
+    ).join('') +
+    '</tbody></table>' +
+    '<div class="mcp-steps">' + sum.chains.map(c =>
+      '<div class="mcp-step-group"><div class="msg-head">' + esc(c.name) + '</div>' +
+      c.steps.map((s, i) => {
+        const ex = Object.keys(s.extract);
+        return '<div class="mcp-step"><span class="num">' + (i + 1) + '</span>' +
+          '<b>' + esc(s.tool) + '</b>' +
+          (Object.keys(s.args).length ? '<em>参数 ' + esc(JSON.stringify(s.args)) + '</em>' : '<em>无参</em>') +
+          (ex.length ? '<em class="ok">提取 ' + esc(ex.map(k => k + ' ← ' + s.extract[k]).join('；')) + '</em>' : '') +
+          (s.desc ? '<em>' + esc(s.desc) + '</em>' : '') +
+          '</div>';
+      }).join('') + '</div>').join('') + '</div>';
+}
+
+/* ---------- ④ 一键回归：结果 + 最近运行记录 ---------- */
+async function loadMcpRuns() {
+  const box = $('#mcpRunTable');
+  if (!box) return;
+  // 顶部先给出「将执行什么」的规模
+  if ($('#mcpRunMeta')) {
+    const p = _mcpParamSum, s = _mcpScenSum;
+    $('#mcpRunMeta').textContent = p && p.exists
+      ? `将执行：参数级 ${p.total} 条 + 场景级 ${s && s.exists ? s.stepCount : 0} 步`
+      : '尚未生成用例，一键回归会自动重新生成';
+  }
+  try {
+    const d = await api('/api/mcp/runs?limit=8');
+    const runs = d.runs || [];
+    if (!runs.length) { box.textContent = '暂无 MCP 运行记录，点击右上角「开始一键回归」。'; return; }
+    box.innerHTML =
+      '<table class="dt"><thead><tr>' +
+      '<th style="width:170px">批次</th><th style="width:150px">执行时间</th><th style="width:210px">来源</th>' +
+      '<th style="width:70px">总数</th><th style="width:70px">通过</th><th style="width:70px">失败</th>' +
+      '<th style="width:90px">耗时</th><th>通过率</th></tr></thead><tbody>' +
+      runs.map(r => {
+        const rate = r.total ? ((r.passedCount / r.total) * 100).toFixed(1) + '%' : '-';
+        const bad = r.failedCount > 0;
+        return '<tr><td>' + esc(r.batchId) + '</td>' +
+          '<td>' + esc(r.startedAt || '') + '</td>' +
+          '<td>' + esc((r.source && r.source.name) || (r.source && r.source.type) || '—') + '</td>' +
+          '<td class="ta-c">' + r.total + '</td>' +
+          '<td class="ta-c" style="color:var(--ok)">' + r.passedCount + '</td>' +
+          '<td class="ta-c" style="color:' + (bad ? 'var(--bad)' : 'var(--text-faint)') + '">' + r.failedCount + '</td>' +
+          '<td class="ta-c">' + (r.wallMs || r.durationMs || 0) + ' ms</td>' +
+          '<td style="color:' + (bad ? 'var(--bad)' : 'var(--ok)') + '">' + rate + '</td></tr>';
+      }).join('') +
+      '</tbody></table>' +
+      '<div class="mcp-pager"><span>仅展示最近 ' + runs.length + ' 次 MCP 相关运行，完整记录见「运行记录」页</span></div>';
+  } catch (e) {
+    box.textContent = '运行记录加载失败：' + e.message;
+  }
+}
+
+/* ---------- ⑤ Schema Diff ---------- */
+async function loadMcpDiff() {
+  const box = $('#mcpDiffTable');
+  if (!box) return;
+  box.innerHTML = '<div class="empty-hint">正在与基线快照对比…</div>';
+  try {
+    const d = await post('/api/mcp/diff');
+    _mcpDiffData = d;
+    renderMcpDiff(d);
+  } catch (e) {
+    if ($('#mcpDiffMeta')) $('#mcpDiffMeta').textContent = '对比失败';
+    box.innerHTML = '<div class="empty-hint">对比失败：' + esc(e.message) + '</div>';
+  }
+}
+
+function renderMcpDiff(d) {
+  const box = $('#mcpDiffTable');
+  if (!box || !d) return;
+  const df = d.diff || {};
+  const added = df.added || [], removed = df.removed || [], changed = df.changed || [];
+  const base = d.baselineTime || '（无基线）';
+  if ($('#mcpDiffMeta')) {
+    $('#mcpDiffMeta').textContent = df.first
+      ? `当前 ${d.currentCount} 个工具 ｜ 首次发现，无基线可对比`
+      : `当前 ${d.currentCount} 个工具 ｜ 基线 ${base} ｜ 新增 ${added.length} / 删除 ${removed.length} / 变更 ${changed.length}`;
+  }
+  const rows = [];
+  added.forEach(t => rows.push(['新增', t, '—', '新增工具，需要补参数级用例']));
+  removed.forEach(t => rows.push(['删除', t, '—', '工具已下线，对应用例应删除']));
+  changed.forEach(c => rows.push(['变更', c.tool, (c.fields || []).join(' / '),
+    'required: [' + (c.oldRequired || []).join(', ') + '] → [' + (c.newRequired || []).join(', ') + ']']));
+  if (df.first) {
+    box.innerHTML = '<div class="empty-hint">首次发现契约（当前 ' + d.currentCount +
+      ' 个工具），已写入基线快照，下次执行 Diff 起开始比对。</div>';
+    return;
+  }
+  if (!rows.length) {
+    box.innerHTML = '<div class="empty-hint ok">接口契约无变化（基线 ' + esc(base) + '），用例无需更新。</div>';
+    return;
+  }
+  box.innerHTML =
+    '<table class="dt"><thead><tr>' +
+    '<th style="width:80px">类型</th><th style="width:300px">工具</th><th style="width:170px">变更字段</th><th>详情</th>' +
+    '</tr></thead><tbody>' +
+    rows.map(r => {
+      const kind = r[0] === '新增' ? 'ok' : (r[0] === '删除' ? 'bad' : 'warn');
+      return '<tr><td><span class="env-chip ' + kind + '">' + esc(r[0]) + '</span></td>' +
+        '<td><b>' + esc(r[1]) + '</b></td><td>' + esc(r[2]) + '</td>' +
+        '<td style="opacity:.8">' + esc(r[3]) + '</td></tr>';
+    }).join('') +
+    '</tbody></table>';
+}
+
+/* ---------- 操作按钮 ---------- */
+async function mcpAction(btn, outSel, fn, after) {
+  const old = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '执行中…';
+  const out = outSel ? $(outSel) : null;
+  if (out) { out.hidden = true; out.textContent = ''; }
+  try {
+    const data = await fn();
+    if (typeof after === 'function') after(data);
+    return data;
+  } catch (e) {
+    if (out) { out.hidden = false; out.textContent = '执行失败：' + e.message; }
+    toast('执行失败：' + e.message, 3200, 'err');
+    return null;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+}
+
+function bindMcpEvents() {
+  const on = (sel, fn) => { const el = $(sel); if (el) el.addEventListener('click', fn); };
+
+  on('#btnMcpDiscover', () => mcpAction($('#btnMcpDiscover'), '#mcpOutContract',
+    async () => {
+      const d = await post('/api/mcp/discover');
+      loadMcpStatus(); loadMcpTools();
+      return d;
+    },
+    d => {
+      const out = $('#mcpOutContract');
+      out.hidden = false;
+      out.textContent = `契约发现完成：工具总数 ${d.toolCount}（armory ${d.armoryToolCount} 个）\n` + fmtDiff(d.diff);
+      toast('契约发现完成：' + d.armoryToolCount + ' 个 armory 工具', 2600, 'ok');
+    }));
+
+  on('#btnMcpDiffQuick', () => mcpAction($('#btnMcpDiffQuick'), '#mcpOutContract',
+    () => post('/api/mcp/diff'),
+    d => {
+      const out = $('#mcpOutContract');
+      out.hidden = false;
+      out.textContent = fmtDiff(d.diff) + (d.baselineTime ? `\n（基线：${d.baselineTime}）` : '');
+    }));
+
+  on('#btnMcpGenParams', () => mcpAction($('#btnMcpGenParams'), '#mcpOutParams',
+    () => post('/api/mcp/generate/params'),
+    d => {
+      const out = $('#mcpOutParams');
+      out.hidden = false;
+      out.textContent = `已生成 ${d.total} 条参数级用例 → ${d.file}`;
+      _mcpParamPage = 1;
+      loadMcpSummary().then(s => s && renderMcpParams(s.params));
+      toast('已生成 ' + d.total + ' 条参数级用例', 2600, 'ok');
+      loadMcpStatus();
+    }));
+
+  on('#btnMcpGenScen', () => mcpAction($('#btnMcpGenScen'), '#mcpOutScen',
+    () => post('/api/mcp/generate/scenarios'),
+    d => {
+      const out = $('#mcpOutScen');
+      out.hidden = false;
+      out.textContent = `已生成 ${d.scenarios} 条链路 / ${d.steps} 个步骤 → ${d.file}`;
+      loadMcpSummary().then(s => s && renderMcpScen(s.scenarios));
+      toast('已生成 ' + d.scenarios + ' 条场景链路', 2600, 'ok');
+    }));
+
+  on('#btnMcpRunScen', () => mcpAction($('#btnMcpRunScen'), '#mcpOutScen',
+    () => post('/api/mcp/scenarios/run'),
+    d => {
+      const out = $('#mcpOutScen');
+      out.hidden = false;
+      const lines = [`场景执行：${d.summary.passed}/${d.summary.total} 通过`];
+      (d.chains || []).forEach(c => {
+        lines.push('', `◆ ${c.name}：${c.passed}/${c.steps} 步通过`);
+        (c.results || []).forEach(r =>
+          lines.push(`  ${r.passed ? '✓' : '✗'} ${r.name}（${r.durationMs} ms）` +
+            (r.error ? ` — ${r.error}` : '')));
+      });
+      out.textContent = lines.join('\n');
+      toast(`场景执行完成：${d.summary.passed}/${d.summary.total} 通过`,
+        2800, d.summary.failed ? 'warn' : 'ok');
+      loadMcpRuns();
+    }));
+
+  on('#btnMcpRegression', () => mcpAction($('#btnMcpRegression'), '#mcpOutRun',
+    () => post('/api/mcp/regression'),
+    d => {
+      const s = d.summary || {};
+      const out = $('#mcpOutRun');
+      out.hidden = false;
+      const rp = (d.steps && d.steps.runParams) || {};
+      const rs = (d.steps && d.steps.runScenarios) || {};
+      out.textContent = [
+        `一键回归完成：${s.passed}/${s.total} 通过（失败 ${s.failed || 0}）`,
+        `· 契约发现：armory 工具 ${(d.steps && d.steps.discover && d.steps.discover.toolCount) || 0} 个`,
+        `· 参数级 4a：${rp.passedCount || 0}/${rp.total || 0}，耗时 ${rp.wallMs || rp.durationMs || 0} ms`,
+        `· 场景级 4b：${rs.passed || 0}/${rs.total || 0}`,
+        `· Schema Diff：${(fmtDiff(s.schemaDiff || {})).split('\n')[0]}`,
+      ].join('\n');
+      toast(`一键回归：${s.passed}/${s.total} 通过`, 3000, s.failed ? 'warn' : 'ok');
+      loadMcpStatus();
+      loadMcpRuns();
+      loadMcpDiff();
+    }));
+
+  on('#btnMcpDiff', () => mcpAction($('#btnMcpDiff'), null,
+    () => post('/api/mcp/diff'),
+    d => { _mcpDiffData = d; renderMcpDiff(d); }));
+
+  // 三个清单的分页按钮统一委托到各自的容器
+  const pagerBind = (sel, attr, fn) => {
+    const box = $(sel);
+    if (!box) return;
+    box.addEventListener('click', e => {
+      const btn = e.target.closest && e.target.closest('[data-' + attr + ']');
+      if (btn && !btn.disabled) fn(Number(btn.dataset[attr]));
+    });
+  };
+  pagerBind('#mcpToolTable', 'mtp', p => renderMcpToolPage(p));
+  pagerBind('#mcpParamsTable', 'mpp', p => { _mcpParamPage = p; renderMcpParams(_mcpParamSum); });
+}
+
 function fmtDiff(d) {
+  if (!d) return '无 diff 数据';
   if (d.first) return '首次发现契约，无对比基线。';
   const lines = [];
   lines.push(`新增工具 ${d.added.length} 个${d.added.length ? '：' + d.added.join(', ') : ''}`);
@@ -358,63 +687,6 @@ function fmtDiff(d) {
   if (!d.added.length && !d.removed.length && !d.changed.length)
     lines.push('接口契约无变化，用例无需更新。');
   return lines.join('\n');
-}
-
-async function mcpAction(btn, outSel, fn) {
-  btn.disabled = true;
-  const old = btn.textContent;
-  btn.textContent = '执行中…';
-  const out = $(outSel);
-  try {
-    const data = await fn();
-    out.textContent = JSON.stringify(data, null, 2);
-    out.dataset.ok = '1';
-  } catch (e) {
-    out.textContent = '执行失败：' + e.message;
-    out.dataset.ok = '';
-  } finally {
-    btn.disabled = false;
-    btn.textContent = old;
-  }
-}
-
-function bindMcpEvents() {
-  const on = (sel, fn) => { const el = $(sel); if (el) el.addEventListener('click', fn); };
-  on('#btnMcpDiscover', () => mcpAction($('#btnMcpDiscover'), '#mcpOutContract',
-    async () => {
-      const d = await post('/api/mcp/discover');
-      loadMcpStatus(); loadMcpTools();
-      return { 工具总数: d.toolCount, armory工具: d.armoryToolCount, diff: d.diff };
-    }));
-  on('#btnMcpDiffQuick', () => mcpAction($('#btnMcpDiffQuick'), '#mcpOutContract',
-    async () => {
-      const d = await post('/api/mcp/diff');
-      return { 当前工具数: d.currentCount, diff: d.diff };
-    }));
-  on('#btnMcpGenParams', () => mcpAction($('#btnMcpGenParams'), '#mcpOutParams',
-    () => post('/api/mcp/generate/params')));
-  on('#btnMcpGenScen', () => mcpAction($('#btnMcpGenScen'), '#mcpOutScen',
-    () => post('/api/mcp/generate/scenarios')));
-  on('#btnMcpRunScen', () => mcpAction($('#btnMcpRunScen'), '#mcpOutScen',
-    async () => {
-      const d = await post('/api/mcp/scenarios/run');
-      return { summary: d.summary,
-        chains: d.chains.map(c => ({ name: c.name, steps: c.steps, passed: c.passed,
-          detail: c.results.map(r => ({ step: r.name, passed: r.passed,
-            error: r.error, ms: r.durationMs })) })) };
-    }));
-  on('#btnMcpRegression', () => mcpAction($('#btnMcpRegression'), '#mcpOutRun',
-    async () => {
-      const d = await post('/api/mcp/regression');
-      loadMcpStatus();
-      return d;
-    }));
-  $$('.mcp-sub').forEach(b => b.addEventListener('click', () => setMcpPanel(b.dataset.msub)));
-  const table = $('#mcpToolTable');
-  if (table) table.addEventListener('click', e => {
-    const btn = e.target.closest && e.target.closest('[data-mtp]');
-    if (btn) renderMcpToolPage(Number(btn.dataset.mtp));
-  });
 }
 
 /* ---------- 用户中心：二级菜单与二级页面 ---------- */
@@ -1806,9 +2078,14 @@ function bindEvents() {
       switchPage(b.dataset.page);
     }
   }));
-  // 用户中心二级菜单
-  $$('.submenu-item').forEach(b => b.addEventListener('click', () => {
+  // 用户中心二级菜单（必须限定容器：否则 MCP 的 .mcp-sub 也被这里捕获，
+  // b.dataset.sub 为 undefined → 点任意 MCP 子菜单都会跳到用户中心页）
+  $$('#usersSubmenu .submenu-item').forEach(b => b.addEventListener('click', () => {
     switchPage('users', b.dataset.sub);
+  }));
+  // MCP 二级菜单
+  $$('#mcpSubmenu .mcp-sub').forEach(b => b.addEventListener('click', () => {
+    switchPage('mcp', b.dataset.msub);
   }));
 
   // 顶栏

@@ -12,3 +12,6 @@ venv/
 # 本地临时
 tools/last_run_results.json
 .DS_Store
+
+# UI 自测截图
+tools/shot-*.png
