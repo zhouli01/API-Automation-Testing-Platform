@@ -1045,3 +1045,38 @@ table.dt tbody tr.mcp-exp-row[hidden] { display: none !important; }
 .mcp-rpt.ok b { color: var(--ok); }
 .mcp-rpt.bad b { color: var(--bad); }
 
+
+/* ===== 契约发现 · 工具清单（完整工具名 + 接口名称） ===== */
+/* 工具名一列不允许截断/省略，超长名称整串换行显示 */
+table.dt.dt-tools td { vertical-align: top; }
+.mcp-tool-name {
+  display: inline-block; font-family: var(--mono); font-size: 12px;
+  font-weight: 600; color: var(--text); letter-spacing: .1px;
+  white-space: normal; word-break: break-all; cursor: copy;
+}
+.mcp-tool-name:hover { color: var(--accent); background: var(--accent-soft); border-radius: 4px; }
+/* 接口名称：METHOD 徽标 + 路径（:param 高亮） */
+.mcp-api { display: block; line-height: 1.6; }
+.mcp-method {
+  display: inline-block; vertical-align: baseline; margin-right: 8px;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 700;
+  padding: 1px 6px; border-radius: 4px; letter-spacing: .4px;
+  border: 1px solid var(--border-strong); background: var(--bg-sunken); color: var(--text-dim);
+}
+.mcp-method.m-get { color: #0b7a52; background: var(--ok-soft); border-color: #9fd9bd; }
+.mcp-method.m-post { color: var(--accent); background: var(--accent-soft); border-color: #c3c6f7; }
+.mcp-method.m-put { color: var(--warn); background: var(--warn-soft); border-color: #e6cf9a; }
+.mcp-method.m-patch { color: #7a4fbf; background: #f2ecfb; border-color: #d5c6ee; }
+.mcp-method.m-delete { color: var(--bad); background: var(--bad-soft); border-color: #f0b6b9; }
+.mcp-path {
+  display: inline; font-family: var(--mono); font-size: 11.5px; color: var(--text-dim);
+  word-break: normal; overflow-wrap: break-word; line-height: 1.5;
+}
+.mcp-param { font-style: normal; color: var(--accent); font-weight: 600; }
+.mcp-tool-desc { color: var(--text-dim); line-height: 1.55; }
+.mcp-none { color: var(--text-faint); }
+html[data-theme="dark"] .mcp-method.m-get { color: #6fd6a6; border-color: #2c5c47; }
+html[data-theme="dark"] .mcp-method.m-post { border-color: #3b3f7a; }
+html[data-theme="dark"] .mcp-method.m-put { border-color: #5c4a24; }
+html[data-theme="dark"] .mcp-method.m-patch { color: #c0a6f0; background: #251d33; border-color: #463360; }
+html[data-theme="dark"] .mcp-method.m-delete { border-color: #6a2f33; }

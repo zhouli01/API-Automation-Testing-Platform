@@ -1,8 +1,860 @@
 {
   "name": "MCP armory 参数级用例（规则生成）",
   "generatedBy": "mcp/generator",
-  "generatedAt": "2026-10-29 18:07:56",
+  "generatedAt": "2026-10-29 18:53:22",
   "cases": [
+    {
+      "name": "armory_user_notification_preference_set 缺必填[enabledChannels]",
+      "user": "MCP",
+      "module": "mcp-armory",
+      "apiName": "tools/call armory_user_notification_preference_set",
+      "apiPath": "armory_user_notification_preference_set",
+      "method": "POST",
+      "url": "http://10.12.7.250/api/mcp/gateway",
+      "headers": {
+        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "tools/call",
+        "params": {
+          "name": "armory_user_notification_preference_set",
+          "arguments": {}
+        }
+      },
+      "expect": {
+        "asserts": [
+          {
+            "type": "json",
+            "path": "result.isError",
+            "op": "eq",
+            "value": true,
+            "desc": "参数校验失败（isError=true，-32602）"
+          },
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "contains",
+            "value": "-32602",
+            "desc": "错误文本含 -32602"
+          }
+        ]
+      },
+      "description": "删除必填字段 enabledChannels"
+    },
+    {
+      "name": "armory_versions_by_platform_arch 缺必填[namespace]",
+      "user": "MCP",
+      "module": "mcp-armory",
+      "apiName": "tools/call armory_versions_by_platform_arch",
+      "apiPath": "armory_versions_by_platform_arch",
+      "method": "POST",
+      "url": "http://10.12.7.250/api/mcp/gateway",
+      "headers": {
+        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "tools/call",
+        "params": {
+          "name": "armory_versions_by_platform_arch",
+          "arguments": {
+            "name": "armory-cli",
+            "platform": "windows",
+            "arch": "x64"
+          }
+        }
+      },
+      "expect": {
+        "asserts": [
+          {
+            "type": "json",
+            "path": "result.isError",
+            "op": "eq",
+            "value": true,
+            "desc": "参数校验失败（isError=true，-32602）"
+          },
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "contains",
+            "value": "-32602",
+            "desc": "错误文本含 -32602"
+          }
+        ]
+      },
+      "description": "删除必填字段 namespace"
+    },
+    {
+      "name": "armory_versions_by_platform_arch 类型错误[namespace]",
+      "user": "MCP",
+      "module": "mcp-armory",
+      "apiName": "tools/call armory_versions_by_platform_arch",
+      "apiPath": "armory_versions_by_platform_arch",
+      "method": "POST",
+      "url": "http://10.12.7.250/api/mcp/gateway",
+      "headers": {
+        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "tools/call",
+        "params": {
+          "name": "armory_versions_by_platform_arch",
+          "arguments": {
+            "namespace": 123,
+            "name": "armory-cli",
+            "platform": "windows",
+            "arch": "x64"
+          }
+        }
+      },
+      "expect": {
+        "asserts": [
+          {
+            "type": "json",
+            "path": "result.isError",
+            "op": "eq",
+            "value": true,
+            "desc": "参数校验失败（isError=true，-32602）"
+          },
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "contains",
+            "value": "-32602",
+            "desc": "错误文本含 -32602"
+          }
+        ]
+      },
+      "description": "string 字段 namespace 传数字"
+    },
+    {
+      "name": "armory_arch_list 正常路径",
+      "user": "MCP",
+      "module": "mcp-armory",
+      "apiName": "tools/call armory_arch_list",
+      "apiPath": "armory_arch_list",
+      "method": "POST",
+      "url": "http://10.12.7.250/api/mcp/gateway",
+      "headers": {
+        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "tools/call",
+        "params": {
+          "name": "armory_arch_list",
+          "arguments": {}
+        }
+      },
+      "expect": {
+        "asserts": [
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "notContains",
+            "value": "-32602",
+            "desc": "无参数级校验错误"
+          },
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "exists",
+            "desc": "返回 content 文本"
+          }
+        ]
+      },
+      "description": "无必填参数只读工具，正常调用"
+    },
+    {
+      "name": "armory_platform_update 缺必填[id]",
+      "user": "MCP",
+      "module": "mcp-armory",
+      "apiName": "tools/call armory_platform_update",
+      "apiPath": "armory_platform_update",
+      "method": "POST",
+      "url": "http://10.12.7.250/api/mcp/gateway",
+      "headers": {
+        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "tools/call",
+        "params": {
+          "name": "armory_platform_update",
+          "arguments": {}
+        }
+      },
+      "expect": {
+        "asserts": [
+          {
+            "type": "json",
+            "path": "result.isError",
+            "op": "eq",
+            "value": true,
+            "desc": "参数校验失败（isError=true，-32602）"
+          },
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "contains",
+            "value": "-32602",
+            "desc": "错误文本含 -32602"
+          }
+        ]
+      },
+      "description": "删除必填字段 id"
+    },
+    {
+      "name": "armory_platform_update 类型错误[id]",
+      "user": "MCP",
+      "module": "mcp-armory",
+      "apiName": "tools/call armory_platform_update",
+      "apiPath": "armory_platform_update",
+      "method": "POST",
+      "url": "http://10.12.7.250/api/mcp/gateway",
+      "headers": {
+        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "tools/call",
+        "params": {
+          "name": "armory_platform_update",
+          "arguments": {
+            "id": 123
+          }
+        }
+      },
+      "expect": {
+        "asserts": [
+          {
+            "type": "json",
+            "path": "result.isError",
+            "op": "eq",
+            "value": true,
+            "desc": "参数校验失败（isError=true，-32602）"
+          },
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "contains",
+            "value": "-32602",
+            "desc": "错误文本含 -32602"
+          }
+        ]
+      },
+      "description": "string 字段 id 传数字"
+    },
+    {
+      "name": "armory_audit_operators 正常路径",
+      "user": "MCP",
+      "module": "mcp-armory",
+      "apiName": "tools/call armory_audit_operators",
+      "apiPath": "armory_audit_operators",
+      "method": "POST",
+      "url": "http://10.12.7.250/api/mcp/gateway",
+      "headers": {
+        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "tools/call",
+        "params": {
+          "name": "armory_audit_operators",
+          "arguments": {}
+        }
+      },
+      "expect": {
+        "asserts": [
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "notContains",
+            "value": "-32602",
+            "desc": "无参数级校验错误"
+          },
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "exists",
+            "desc": "返回 content 文本"
+          }
+        ]
+      },
+      "description": "无必填参数只读工具，正常调用"
+    },
+    {
+      "name": "armory_package_version_files_view 缺必填[namespace]",
+      "user": "MCP",
+      "module": "mcp-armory",
+      "apiName": "tools/call armory_package_version_files_view",
+      "apiPath": "armory_package_version_files_view",
+      "method": "POST",
+      "url": "http://10.12.7.250/api/mcp/gateway",
+      "headers": {
+        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "tools/call",
+        "params": {
+          "name": "armory_package_version_files_view",
+          "arguments": {
+            "name": "armory-cli",
+            "version": "2.2.1",
+            "platform": "windows",
+            "arch": "x64"
+          }
+        }
+      },
+      "expect": {
+        "asserts": [
+          {
+            "type": "json",
+            "path": "result.isError",
+            "op": "eq",
+            "value": true,
+            "desc": "参数校验失败（isError=true，-32602）"
+          },
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "contains",
+            "value": "-32602",
+            "desc": "错误文本含 -32602"
+          }
+        ]
+      },
+      "description": "删除必填字段 namespace"
+    },
+    {
+      "name": "armory_package_version_files_view 类型错误[namespace]",
+      "user": "MCP",
+      "module": "mcp-armory",
+      "apiName": "tools/call armory_package_version_files_view",
+      "apiPath": "armory_package_version_files_view",
+      "method": "POST",
+      "url": "http://10.12.7.250/api/mcp/gateway",
+      "headers": {
+        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "tools/call",
+        "params": {
+          "name": "armory_package_version_files_view",
+          "arguments": {
+            "namespace": 123,
+            "name": "armory-cli",
+            "version": "2.2.1",
+            "platform": "windows",
+            "arch": "x64"
+          }
+        }
+      },
+      "expect": {
+        "asserts": [
+          {
+            "type": "json",
+            "path": "result.isError",
+            "op": "eq",
+            "value": true,
+            "desc": "参数校验失败（isError=true，-32602）"
+          },
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "contains",
+            "value": "-32602",
+            "desc": "错误文本含 -32602"
+          }
+        ]
+      },
+      "description": "string 字段 namespace 传数字"
+    },
+    {
+      "name": "armory_webhook_delete 缺必填[id]",
+      "user": "MCP",
+      "module": "mcp-armory",
+      "apiName": "tools/call armory_webhook_delete",
+      "apiPath": "armory_webhook_delete",
+      "method": "POST",
+      "url": "http://10.12.7.250/api/mcp/gateway",
+      "headers": {
+        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "tools/call",
+        "params": {
+          "name": "armory_webhook_delete",
+          "arguments": {}
+        }
+      },
+      "expect": {
+        "asserts": [
+          {
+            "type": "json",
+            "path": "result.isError",
+            "op": "eq",
+            "value": true,
+            "desc": "参数校验失败（isError=true，-32602）"
+          },
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "contains",
+            "value": "-32602",
+            "desc": "错误文本含 -32602"
+          }
+        ]
+      },
+      "description": "删除必填字段 id"
+    },
+    {
+      "name": "armory_webhook_delete 类型错误[id]",
+      "user": "MCP",
+      "module": "mcp-armory",
+      "apiName": "tools/call armory_webhook_delete",
+      "apiPath": "armory_webhook_delete",
+      "method": "POST",
+      "url": "http://10.12.7.250/api/mcp/gateway",
+      "headers": {
+        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "tools/call",
+        "params": {
+          "name": "armory_webhook_delete",
+          "arguments": {
+            "id": 123
+          }
+        }
+      },
+      "expect": {
+        "asserts": [
+          {
+            "type": "json",
+            "path": "result.isError",
+            "op": "eq",
+            "value": true,
+            "desc": "参数校验失败（isError=true，-32602）"
+          },
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "contains",
+            "value": "-32602",
+            "desc": "错误文本含 -32602"
+          }
+        ]
+      },
+      "description": "string 字段 id 传数字"
+    },
+    {
+      "name": "armory_namespace_update 缺必填[name]",
+      "user": "MCP",
+      "module": "mcp-armory",
+      "apiName": "tools/call armory_namespace_update",
+      "apiPath": "armory_namespace_update",
+      "method": "POST",
+      "url": "http://10.12.7.250/api/mcp/gateway",
+      "headers": {
+        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "tools/call",
+        "params": {
+          "name": "armory_namespace_update",
+          "arguments": {}
+        }
+      },
+      "expect": {
+        "asserts": [
+          {
+            "type": "json",
+            "path": "result.isError",
+            "op": "eq",
+            "value": true,
+            "desc": "参数校验失败（isError=true，-32602）"
+          },
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "contains",
+            "value": "-32602",
+            "desc": "错误文本含 -32602"
+          }
+        ]
+      },
+      "description": "删除必填字段 name"
+    },
+    {
+      "name": "armory_namespace_update 类型错误[name]",
+      "user": "MCP",
+      "module": "mcp-armory",
+      "apiName": "tools/call armory_namespace_update",
+      "apiPath": "armory_namespace_update",
+      "method": "POST",
+      "url": "http://10.12.7.250/api/mcp/gateway",
+      "headers": {
+        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "tools/call",
+        "params": {
+          "name": "armory_namespace_update",
+          "arguments": {
+            "name": 123
+          }
+        }
+      },
+      "expect": {
+        "asserts": [
+          {
+            "type": "json",
+            "path": "result.isError",
+            "op": "eq",
+            "value": true,
+            "desc": "参数校验失败（isError=true，-32602）"
+          },
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "contains",
+            "value": "-32602",
+            "desc": "错误文本含 -32602"
+          }
+        ]
+      },
+      "description": "string 字段 name 传数字"
+    },
+    {
+      "name": "armory_package_create 缺必填[namespace]",
+      "user": "MCP",
+      "module": "mcp-armory",
+      "apiName": "tools/call armory_package_create",
+      "apiPath": "armory_package_create",
+      "method": "POST",
+      "url": "http://10.12.7.250/api/mcp/gateway",
+      "headers": {
+        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "tools/call",
+        "params": {
+          "name": "armory_package_create",
+          "arguments": {
+            "name": "armory-cli"
+          }
+        }
+      },
+      "expect": {
+        "asserts": [
+          {
+            "type": "json",
+            "path": "result.isError",
+            "op": "eq",
+            "value": true,
+            "desc": "参数校验失败（isError=true，-32602）"
+          },
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "contains",
+            "value": "-32602",
+            "desc": "错误文本含 -32602"
+          }
+        ]
+      },
+      "description": "删除必填字段 namespace"
+    },
+    {
+      "name": "armory_package_create 类型错误[namespace]",
+      "user": "MCP",
+      "module": "mcp-armory",
+      "apiName": "tools/call armory_package_create",
+      "apiPath": "armory_package_create",
+      "method": "POST",
+      "url": "http://10.12.7.250/api/mcp/gateway",
+      "headers": {
+        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "tools/call",
+        "params": {
+          "name": "armory_package_create",
+          "arguments": {
+            "namespace": 123,
+            "name": "armory-cli"
+          }
+        }
+      },
+      "expect": {
+        "asserts": [
+          {
+            "type": "json",
+            "path": "result.isError",
+            "op": "eq",
+            "value": true,
+            "desc": "参数校验失败（isError=true，-32602）"
+          },
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "contains",
+            "value": "-32602",
+            "desc": "错误文本含 -32602"
+          }
+        ]
+      },
+      "description": "string 字段 namespace 传数字"
+    },
+    {
+      "name": "armory_blob_info 缺必填[sha256]",
+      "user": "MCP",
+      "module": "mcp-armory",
+      "apiName": "tools/call armory_blob_info",
+      "apiPath": "armory_blob_info",
+      "method": "POST",
+      "url": "http://10.12.7.250/api/mcp/gateway",
+      "headers": {
+        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "tools/call",
+        "params": {
+          "name": "armory_blob_info",
+          "arguments": {}
+        }
+      },
+      "expect": {
+        "asserts": [
+          {
+            "type": "json",
+            "path": "result.isError",
+            "op": "eq",
+            "value": true,
+            "desc": "参数校验失败（isError=true，-32602）"
+          },
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "contains",
+            "value": "-32602",
+            "desc": "错误文本含 -32602"
+          }
+        ]
+      },
+      "description": "删除必填字段 sha256"
+    },
+    {
+      "name": "armory_blob_info 类型错误[sha256]",
+      "user": "MCP",
+      "module": "mcp-armory",
+      "apiName": "tools/call armory_blob_info",
+      "apiPath": "armory_blob_info",
+      "method": "POST",
+      "url": "http://10.12.7.250/api/mcp/gateway",
+      "headers": {
+        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "tools/call",
+        "params": {
+          "name": "armory_blob_info",
+          "arguments": {
+            "sha256": 123
+          }
+        }
+      },
+      "expect": {
+        "asserts": [
+          {
+            "type": "json",
+            "path": "result.isError",
+            "op": "eq",
+            "value": true,
+            "desc": "参数校验失败（isError=true，-32602）"
+          },
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "contains",
+            "value": "-32602",
+            "desc": "错误文本含 -32602"
+          }
+        ]
+      },
+      "description": "string 字段 sha256 传数字"
+    },
+    {
+      "name": "armory_arch_validate 缺必填[name]",
+      "user": "MCP",
+      "module": "mcp-armory",
+      "apiName": "tools/call armory_arch_validate",
+      "apiPath": "armory_arch_validate",
+      "method": "POST",
+      "url": "http://10.12.7.250/api/mcp/gateway",
+      "headers": {
+        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "tools/call",
+        "params": {
+          "name": "armory_arch_validate",
+          "arguments": {}
+        }
+      },
+      "expect": {
+        "asserts": [
+          {
+            "type": "json",
+            "path": "result.isError",
+            "op": "eq",
+            "value": true,
+            "desc": "参数校验失败（isError=true，-32602）"
+          },
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "contains",
+            "value": "-32602",
+            "desc": "错误文本含 -32602"
+          }
+        ]
+      },
+      "description": "删除必填字段 name"
+    },
+    {
+      "name": "armory_arch_validate 类型错误[name]",
+      "user": "MCP",
+      "module": "mcp-armory",
+      "apiName": "tools/call armory_arch_validate",
+      "apiPath": "armory_arch_validate",
+      "method": "POST",
+      "url": "http://10.12.7.250/api/mcp/gateway",
+      "headers": {
+        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "tools/call",
+        "params": {
+          "name": "armory_arch_validate",
+          "arguments": {
+            "name": 123
+          }
+        }
+      },
+      "expect": {
+        "asserts": [
+          {
+            "type": "json",
+            "path": "result.isError",
+            "op": "eq",
+            "value": true,
+            "desc": "参数校验失败（isError=true，-32602）"
+          },
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "contains",
+            "value": "-32602",
+            "desc": "错误文本含 -32602"
+          }
+        ]
+      },
+      "description": "string 字段 name 传数字"
+    },
+    {
+      "name": "armory_permissions_sys 正常路径",
+      "user": "MCP",
+      "module": "mcp-armory",
+      "apiName": "tools/call armory_permissions_sys",
+      "apiPath": "armory_permissions_sys",
+      "method": "POST",
+      "url": "http://10.12.7.250/api/mcp/gateway",
+      "headers": {
+        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "tools/call",
+        "params": {
+          "name": "armory_permissions_sys",
+          "arguments": {}
+        }
+      },
+      "expect": {
+        "asserts": [
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "notContains",
+            "value": "-32602",
+            "desc": "无参数级校验错误"
+          },
+          {
+            "type": "json",
+            "path": "result.content.0.text",
+            "op": "exists",
+            "desc": "返回 content 文本"
+          }
+        ]
+      },
+      "description": "无必填参数只读工具，正常调用"
+    },
     {
       "name": "armory_package_versions 缺必填[namespace]",
       "user": "MCP",
@@ -7815,858 +8667,6 @@
         ]
       },
       "description": "string 字段 namespace 传数字"
-    },
-    {
-      "name": "armory_user_notification_preference_set 缺必填[enabledChannels]",
-      "user": "MCP",
-      "module": "mcp-armory",
-      "apiName": "tools/call armory_user_notification_preference_set",
-      "apiPath": "armory_user_notification_preference_set",
-      "method": "POST",
-      "url": "http://10.12.7.250/api/mcp/gateway",
-      "headers": {
-        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "tools/call",
-        "params": {
-          "name": "armory_user_notification_preference_set",
-          "arguments": {}
-        }
-      },
-      "expect": {
-        "asserts": [
-          {
-            "type": "json",
-            "path": "result.isError",
-            "op": "eq",
-            "value": true,
-            "desc": "参数校验失败（isError=true，-32602）"
-          },
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "contains",
-            "value": "-32602",
-            "desc": "错误文本含 -32602"
-          }
-        ]
-      },
-      "description": "删除必填字段 enabledChannels"
-    },
-    {
-      "name": "armory_versions_by_platform_arch 缺必填[namespace]",
-      "user": "MCP",
-      "module": "mcp-armory",
-      "apiName": "tools/call armory_versions_by_platform_arch",
-      "apiPath": "armory_versions_by_platform_arch",
-      "method": "POST",
-      "url": "http://10.12.7.250/api/mcp/gateway",
-      "headers": {
-        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "tools/call",
-        "params": {
-          "name": "armory_versions_by_platform_arch",
-          "arguments": {
-            "name": "armory-cli",
-            "platform": "windows",
-            "arch": "x64"
-          }
-        }
-      },
-      "expect": {
-        "asserts": [
-          {
-            "type": "json",
-            "path": "result.isError",
-            "op": "eq",
-            "value": true,
-            "desc": "参数校验失败（isError=true，-32602）"
-          },
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "contains",
-            "value": "-32602",
-            "desc": "错误文本含 -32602"
-          }
-        ]
-      },
-      "description": "删除必填字段 namespace"
-    },
-    {
-      "name": "armory_versions_by_platform_arch 类型错误[namespace]",
-      "user": "MCP",
-      "module": "mcp-armory",
-      "apiName": "tools/call armory_versions_by_platform_arch",
-      "apiPath": "armory_versions_by_platform_arch",
-      "method": "POST",
-      "url": "http://10.12.7.250/api/mcp/gateway",
-      "headers": {
-        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "tools/call",
-        "params": {
-          "name": "armory_versions_by_platform_arch",
-          "arguments": {
-            "namespace": 123,
-            "name": "armory-cli",
-            "platform": "windows",
-            "arch": "x64"
-          }
-        }
-      },
-      "expect": {
-        "asserts": [
-          {
-            "type": "json",
-            "path": "result.isError",
-            "op": "eq",
-            "value": true,
-            "desc": "参数校验失败（isError=true，-32602）"
-          },
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "contains",
-            "value": "-32602",
-            "desc": "错误文本含 -32602"
-          }
-        ]
-      },
-      "description": "string 字段 namespace 传数字"
-    },
-    {
-      "name": "armory_arch_list 正常路径",
-      "user": "MCP",
-      "module": "mcp-armory",
-      "apiName": "tools/call armory_arch_list",
-      "apiPath": "armory_arch_list",
-      "method": "POST",
-      "url": "http://10.12.7.250/api/mcp/gateway",
-      "headers": {
-        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "tools/call",
-        "params": {
-          "name": "armory_arch_list",
-          "arguments": {}
-        }
-      },
-      "expect": {
-        "asserts": [
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "notContains",
-            "value": "-32602",
-            "desc": "无参数级校验错误"
-          },
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "exists",
-            "desc": "返回 content 文本"
-          }
-        ]
-      },
-      "description": "无必填参数只读工具，正常调用"
-    },
-    {
-      "name": "armory_platform_update 缺必填[id]",
-      "user": "MCP",
-      "module": "mcp-armory",
-      "apiName": "tools/call armory_platform_update",
-      "apiPath": "armory_platform_update",
-      "method": "POST",
-      "url": "http://10.12.7.250/api/mcp/gateway",
-      "headers": {
-        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "tools/call",
-        "params": {
-          "name": "armory_platform_update",
-          "arguments": {}
-        }
-      },
-      "expect": {
-        "asserts": [
-          {
-            "type": "json",
-            "path": "result.isError",
-            "op": "eq",
-            "value": true,
-            "desc": "参数校验失败（isError=true，-32602）"
-          },
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "contains",
-            "value": "-32602",
-            "desc": "错误文本含 -32602"
-          }
-        ]
-      },
-      "description": "删除必填字段 id"
-    },
-    {
-      "name": "armory_platform_update 类型错误[id]",
-      "user": "MCP",
-      "module": "mcp-armory",
-      "apiName": "tools/call armory_platform_update",
-      "apiPath": "armory_platform_update",
-      "method": "POST",
-      "url": "http://10.12.7.250/api/mcp/gateway",
-      "headers": {
-        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "tools/call",
-        "params": {
-          "name": "armory_platform_update",
-          "arguments": {
-            "id": 123
-          }
-        }
-      },
-      "expect": {
-        "asserts": [
-          {
-            "type": "json",
-            "path": "result.isError",
-            "op": "eq",
-            "value": true,
-            "desc": "参数校验失败（isError=true，-32602）"
-          },
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "contains",
-            "value": "-32602",
-            "desc": "错误文本含 -32602"
-          }
-        ]
-      },
-      "description": "string 字段 id 传数字"
-    },
-    {
-      "name": "armory_audit_operators 正常路径",
-      "user": "MCP",
-      "module": "mcp-armory",
-      "apiName": "tools/call armory_audit_operators",
-      "apiPath": "armory_audit_operators",
-      "method": "POST",
-      "url": "http://10.12.7.250/api/mcp/gateway",
-      "headers": {
-        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "tools/call",
-        "params": {
-          "name": "armory_audit_operators",
-          "arguments": {}
-        }
-      },
-      "expect": {
-        "asserts": [
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "notContains",
-            "value": "-32602",
-            "desc": "无参数级校验错误"
-          },
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "exists",
-            "desc": "返回 content 文本"
-          }
-        ]
-      },
-      "description": "无必填参数只读工具，正常调用"
-    },
-    {
-      "name": "armory_package_version_files_view 缺必填[namespace]",
-      "user": "MCP",
-      "module": "mcp-armory",
-      "apiName": "tools/call armory_package_version_files_view",
-      "apiPath": "armory_package_version_files_view",
-      "method": "POST",
-      "url": "http://10.12.7.250/api/mcp/gateway",
-      "headers": {
-        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "tools/call",
-        "params": {
-          "name": "armory_package_version_files_view",
-          "arguments": {
-            "name": "armory-cli",
-            "version": "2.2.1",
-            "platform": "windows",
-            "arch": "x64"
-          }
-        }
-      },
-      "expect": {
-        "asserts": [
-          {
-            "type": "json",
-            "path": "result.isError",
-            "op": "eq",
-            "value": true,
-            "desc": "参数校验失败（isError=true，-32602）"
-          },
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "contains",
-            "value": "-32602",
-            "desc": "错误文本含 -32602"
-          }
-        ]
-      },
-      "description": "删除必填字段 namespace"
-    },
-    {
-      "name": "armory_package_version_files_view 类型错误[namespace]",
-      "user": "MCP",
-      "module": "mcp-armory",
-      "apiName": "tools/call armory_package_version_files_view",
-      "apiPath": "armory_package_version_files_view",
-      "method": "POST",
-      "url": "http://10.12.7.250/api/mcp/gateway",
-      "headers": {
-        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "tools/call",
-        "params": {
-          "name": "armory_package_version_files_view",
-          "arguments": {
-            "namespace": 123,
-            "name": "armory-cli",
-            "version": "2.2.1",
-            "platform": "windows",
-            "arch": "x64"
-          }
-        }
-      },
-      "expect": {
-        "asserts": [
-          {
-            "type": "json",
-            "path": "result.isError",
-            "op": "eq",
-            "value": true,
-            "desc": "参数校验失败（isError=true，-32602）"
-          },
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "contains",
-            "value": "-32602",
-            "desc": "错误文本含 -32602"
-          }
-        ]
-      },
-      "description": "string 字段 namespace 传数字"
-    },
-    {
-      "name": "armory_webhook_delete 缺必填[id]",
-      "user": "MCP",
-      "module": "mcp-armory",
-      "apiName": "tools/call armory_webhook_delete",
-      "apiPath": "armory_webhook_delete",
-      "method": "POST",
-      "url": "http://10.12.7.250/api/mcp/gateway",
-      "headers": {
-        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "tools/call",
-        "params": {
-          "name": "armory_webhook_delete",
-          "arguments": {}
-        }
-      },
-      "expect": {
-        "asserts": [
-          {
-            "type": "json",
-            "path": "result.isError",
-            "op": "eq",
-            "value": true,
-            "desc": "参数校验失败（isError=true，-32602）"
-          },
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "contains",
-            "value": "-32602",
-            "desc": "错误文本含 -32602"
-          }
-        ]
-      },
-      "description": "删除必填字段 id"
-    },
-    {
-      "name": "armory_webhook_delete 类型错误[id]",
-      "user": "MCP",
-      "module": "mcp-armory",
-      "apiName": "tools/call armory_webhook_delete",
-      "apiPath": "armory_webhook_delete",
-      "method": "POST",
-      "url": "http://10.12.7.250/api/mcp/gateway",
-      "headers": {
-        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "tools/call",
-        "params": {
-          "name": "armory_webhook_delete",
-          "arguments": {
-            "id": 123
-          }
-        }
-      },
-      "expect": {
-        "asserts": [
-          {
-            "type": "json",
-            "path": "result.isError",
-            "op": "eq",
-            "value": true,
-            "desc": "参数校验失败（isError=true，-32602）"
-          },
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "contains",
-            "value": "-32602",
-            "desc": "错误文本含 -32602"
-          }
-        ]
-      },
-      "description": "string 字段 id 传数字"
-    },
-    {
-      "name": "armory_namespace_update 缺必填[name]",
-      "user": "MCP",
-      "module": "mcp-armory",
-      "apiName": "tools/call armory_namespace_update",
-      "apiPath": "armory_namespace_update",
-      "method": "POST",
-      "url": "http://10.12.7.250/api/mcp/gateway",
-      "headers": {
-        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "tools/call",
-        "params": {
-          "name": "armory_namespace_update",
-          "arguments": {}
-        }
-      },
-      "expect": {
-        "asserts": [
-          {
-            "type": "json",
-            "path": "result.isError",
-            "op": "eq",
-            "value": true,
-            "desc": "参数校验失败（isError=true，-32602）"
-          },
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "contains",
-            "value": "-32602",
-            "desc": "错误文本含 -32602"
-          }
-        ]
-      },
-      "description": "删除必填字段 name"
-    },
-    {
-      "name": "armory_namespace_update 类型错误[name]",
-      "user": "MCP",
-      "module": "mcp-armory",
-      "apiName": "tools/call armory_namespace_update",
-      "apiPath": "armory_namespace_update",
-      "method": "POST",
-      "url": "http://10.12.7.250/api/mcp/gateway",
-      "headers": {
-        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "tools/call",
-        "params": {
-          "name": "armory_namespace_update",
-          "arguments": {
-            "name": 123
-          }
-        }
-      },
-      "expect": {
-        "asserts": [
-          {
-            "type": "json",
-            "path": "result.isError",
-            "op": "eq",
-            "value": true,
-            "desc": "参数校验失败（isError=true，-32602）"
-          },
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "contains",
-            "value": "-32602",
-            "desc": "错误文本含 -32602"
-          }
-        ]
-      },
-      "description": "string 字段 name 传数字"
-    },
-    {
-      "name": "armory_package_create 缺必填[namespace]",
-      "user": "MCP",
-      "module": "mcp-armory",
-      "apiName": "tools/call armory_package_create",
-      "apiPath": "armory_package_create",
-      "method": "POST",
-      "url": "http://10.12.7.250/api/mcp/gateway",
-      "headers": {
-        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "tools/call",
-        "params": {
-          "name": "armory_package_create",
-          "arguments": {
-            "name": "armory-cli"
-          }
-        }
-      },
-      "expect": {
-        "asserts": [
-          {
-            "type": "json",
-            "path": "result.isError",
-            "op": "eq",
-            "value": true,
-            "desc": "参数校验失败（isError=true，-32602）"
-          },
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "contains",
-            "value": "-32602",
-            "desc": "错误文本含 -32602"
-          }
-        ]
-      },
-      "description": "删除必填字段 namespace"
-    },
-    {
-      "name": "armory_package_create 类型错误[namespace]",
-      "user": "MCP",
-      "module": "mcp-armory",
-      "apiName": "tools/call armory_package_create",
-      "apiPath": "armory_package_create",
-      "method": "POST",
-      "url": "http://10.12.7.250/api/mcp/gateway",
-      "headers": {
-        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "tools/call",
-        "params": {
-          "name": "armory_package_create",
-          "arguments": {
-            "namespace": 123,
-            "name": "armory-cli"
-          }
-        }
-      },
-      "expect": {
-        "asserts": [
-          {
-            "type": "json",
-            "path": "result.isError",
-            "op": "eq",
-            "value": true,
-            "desc": "参数校验失败（isError=true，-32602）"
-          },
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "contains",
-            "value": "-32602",
-            "desc": "错误文本含 -32602"
-          }
-        ]
-      },
-      "description": "string 字段 namespace 传数字"
-    },
-    {
-      "name": "armory_blob_info 缺必填[sha256]",
-      "user": "MCP",
-      "module": "mcp-armory",
-      "apiName": "tools/call armory_blob_info",
-      "apiPath": "armory_blob_info",
-      "method": "POST",
-      "url": "http://10.12.7.250/api/mcp/gateway",
-      "headers": {
-        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "tools/call",
-        "params": {
-          "name": "armory_blob_info",
-          "arguments": {}
-        }
-      },
-      "expect": {
-        "asserts": [
-          {
-            "type": "json",
-            "path": "result.isError",
-            "op": "eq",
-            "value": true,
-            "desc": "参数校验失败（isError=true，-32602）"
-          },
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "contains",
-            "value": "-32602",
-            "desc": "错误文本含 -32602"
-          }
-        ]
-      },
-      "description": "删除必填字段 sha256"
-    },
-    {
-      "name": "armory_blob_info 类型错误[sha256]",
-      "user": "MCP",
-      "module": "mcp-armory",
-      "apiName": "tools/call armory_blob_info",
-      "apiPath": "armory_blob_info",
-      "method": "POST",
-      "url": "http://10.12.7.250/api/mcp/gateway",
-      "headers": {
-        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "tools/call",
-        "params": {
-          "name": "armory_blob_info",
-          "arguments": {
-            "sha256": 123
-          }
-        }
-      },
-      "expect": {
-        "asserts": [
-          {
-            "type": "json",
-            "path": "result.isError",
-            "op": "eq",
-            "value": true,
-            "desc": "参数校验失败（isError=true，-32602）"
-          },
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "contains",
-            "value": "-32602",
-            "desc": "错误文本含 -32602"
-          }
-        ]
-      },
-      "description": "string 字段 sha256 传数字"
-    },
-    {
-      "name": "armory_arch_validate 缺必填[name]",
-      "user": "MCP",
-      "module": "mcp-armory",
-      "apiName": "tools/call armory_arch_validate",
-      "apiPath": "armory_arch_validate",
-      "method": "POST",
-      "url": "http://10.12.7.250/api/mcp/gateway",
-      "headers": {
-        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "tools/call",
-        "params": {
-          "name": "armory_arch_validate",
-          "arguments": {}
-        }
-      },
-      "expect": {
-        "asserts": [
-          {
-            "type": "json",
-            "path": "result.isError",
-            "op": "eq",
-            "value": true,
-            "desc": "参数校验失败（isError=true，-32602）"
-          },
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "contains",
-            "value": "-32602",
-            "desc": "错误文本含 -32602"
-          }
-        ]
-      },
-      "description": "删除必填字段 name"
-    },
-    {
-      "name": "armory_arch_validate 类型错误[name]",
-      "user": "MCP",
-      "module": "mcp-armory",
-      "apiName": "tools/call armory_arch_validate",
-      "apiPath": "armory_arch_validate",
-      "method": "POST",
-      "url": "http://10.12.7.250/api/mcp/gateway",
-      "headers": {
-        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "tools/call",
-        "params": {
-          "name": "armory_arch_validate",
-          "arguments": {
-            "name": 123
-          }
-        }
-      },
-      "expect": {
-        "asserts": [
-          {
-            "type": "json",
-            "path": "result.isError",
-            "op": "eq",
-            "value": true,
-            "desc": "参数校验失败（isError=true，-32602）"
-          },
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "contains",
-            "value": "-32602",
-            "desc": "错误文本含 -32602"
-          }
-        ]
-      },
-      "description": "string 字段 name 传数字"
-    },
-    {
-      "name": "armory_permissions_sys 正常路径",
-      "user": "MCP",
-      "module": "mcp-armory",
-      "apiName": "tools/call armory_permissions_sys",
-      "apiPath": "armory_permissions_sys",
-      "method": "POST",
-      "url": "http://10.12.7.250/api/mcp/gateway",
-      "headers": {
-        "Authorization": "Basic dWEtMjA4NjEzMzgwZjlmNGJjYTg3ZjI0MzlmM2U1YTVjY2Y6ZjQ1YjM3YzlkOTkyNGY1ZThkZmQxMjZkNTFhODY4NmI=",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "jsonrpc": "2.0",
-        "id": 0,
-        "method": "tools/call",
-        "params": {
-          "name": "armory_permissions_sys",
-          "arguments": {}
-        }
-      },
-      "expect": {
-        "asserts": [
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "notContains",
-            "value": "-32602",
-            "desc": "无参数级校验错误"
-          },
-          {
-            "type": "json",
-            "path": "result.content.0.text",
-            "op": "exists",
-            "desc": "返回 content 文本"
-          }
-        ]
-      },
-      "description": "无必填参数只读工具，正常调用"
     },
     {
       "name": "未知工具",

@@ -15,3 +15,6 @@ tools/last_run_results.json
 
 # UI 自测截图
 tools/shot-*.png
+
+# 工作区数据
+.workbuddy/

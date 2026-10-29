@@ -51,18 +51,53 @@ def _ping():
         return False
 
 
-@router.get('/tools', summary='契约发现的工具清单（名称 / 描述 / 必填参数）')
+# 工具 description 里的接口声明：'…对应 API: GET /v1/packages/@:namespace/:name/versions'
+_API_DECL_RE = re.compile(r'对应\s*API\s*[:：]\s*([A-Za-z]+)\s+(\S+)')
+
+
+def _split_api(desc):
+    """把 description 拆成 (方法, 路径, 纯描述)。
+
+    armory 工具的 description 统一写成「<说明>。对应 API: <METHOD> <PATH>」，
+    接口名称单独成列后，描述列只保留业务说明，避免重复。
+    """
+    desc = (desc or '').strip()
+    m = _API_DECL_RE.search(desc)
+    if not m:
+        return '', '', desc
+    method, path = m.group(1).upper(), m.group(2).rstrip('。.;；,，')
+    clean = (desc[:m.start()] + desc[m.end():]).strip()
+    clean = clean.strip('。.;；,，').strip()
+    return method, path, clean
+
+
+@router.get('/tools', summary='契约发现的工具清单（完整工具名 / 接口名称 / 描述 / 必填参数）')
 def list_tools(_user: dict = Depends(require_user)):
     contract = contract_mod.load_contract()
     if not contract:
         raise ApiError(400, '尚未进行契约发现，请先在「契约发现」页执行')
+    tools = []
+    for t in contract.get('tools') or []:
+        method, path, clean = _split_api(t.get('description'))
+        schema = t.get('inputSchema') or {}
+        props = schema.get('properties') or {}
+        tools.append({
+            'name': t['name'],                       # 完整 MCP tool 名（含 armory_ 前缀）
+            'apiMethod': method,
+            'apiPath': path,
+            'apiName': (method + ' ' + path).strip(),
+            'description': clean or (t.get('description') or '').strip(),
+            'required': t.get('required') or [],
+            'params': [{'name': k, 'type': (v or {}).get('type') or '',
+                        'description': (v or {}).get('description') or ''}
+                       for k, v in props.items()],
+            'paramCount': len(props),
+        })
     return {'ok': True, 'generatedAt': contract.get('generatedAt'),
             'gateway': MCP_GATEWAY_URL,
-            'total': contract.get('armoryToolCount') or len(contract.get('tools') or []),
-            'tools': [{'name': t['name'],
-                       'description': (t.get('description') or '').strip(),
-                       'required': t.get('required') or []}
-                      for t in contract.get('tools') or []]}
+            'total': contract.get('armoryToolCount') or len(tools),
+            'withApi': sum(1 for t in tools if t['apiPath']),
+            'tools': tools}
 
 
 @router.get('/cases/summary', summary='已生成用例概览（4a 参数级 / 4b 场景级）')

@@ -386,13 +386,29 @@ async function loadMcpTools() {
   try {
     const d = await api('/api/mcp/tools');
     _mcpTools = d.tools || [];
-    if ($('#mcpToolCount')) $('#mcpToolCount').textContent = `共 ${d.total} 个工具（发现于 ${d.generatedAt}）`;
+    if ($('#mcpToolCount')) $('#mcpToolCount').textContent =
+      `共 ${d.total} 个工具（发现于 ${d.generatedAt}）｜接口名称已标注 ${d.withApi != null ? d.withApi : (d.tools || []).filter(t => t.apiPath).length} 个`;
     renderMcpToolPage(1);
   } catch (e) {
     _mcpTools = null;
     box.textContent = e.message.includes('尚未') ? '尚未发现契约，请先点击上方「发现并导出契约」。' : '加载失败：' + e.message;
     if ($('#mcpToolCount')) $('#mcpToolCount').textContent = '';
   }
+}
+
+/* 接口路径里的 :param 高亮，并在 / 之后加换行点（长路径按段折行，不从单词中间断开）
+   注意顺序：先插 <wbr> 再包 <em>，否则会把 </em> 里的斜杠也当成换行点。 */
+function mcpApiPath(path) {
+  const s = esc(path || '').replace(/\/(?=\S)/g, '/<wbr>');
+  return s.replace(/:([A-Za-z_][A-Za-z0-9_]*)/g, '<em class="mcp-param">:$1</em>');
+}
+
+function mcpApiCell(t) {
+  if (!t.apiPath) return '<span class="mcp-none">—</span>';
+  const m = (t.apiMethod || '').toLowerCase();
+  return '<div class="mcp-api">' +
+    '<span class="mcp-method m-' + esc(m) + '">' + esc(t.apiMethod) + '</span>' +
+    '<code class="mcp-path">' + mcpApiPath(t.apiPath) + '</code></div>';
 }
 
 function renderMcpToolPage(page) {
@@ -404,16 +420,22 @@ function renderMcpToolPage(page) {
   const start = (_mcpToolPage - 1) * MCP_TOOL_PAGE_SIZE;
   const rows = _mcpTools.slice(start, start + MCP_TOOL_PAGE_SIZE);
   box.innerHTML =
-    '<table class="dt"><thead><tr>' +
-    '<th style="width:60px">#</th><th style="width:250px">工具名称</th><th>description</th><th style="width:210px">必填参数</th>' +
+    '<table class="dt dt-tools"><thead><tr>' +
+    '<th class="ta-c" style="width:52px">#</th>' +
+    '<th style="width:290px">工具名称（MCP Tool）</th>' +
+    '<th style="width:352px">接口名称</th>' +
+    '<th>工具说明</th>' +
+    '<th style="width:200px">必填参数</th>' +
     '</tr></thead><tbody>' +
     rows.map((t, i) =>
       '<tr><td class="ta-c">' + (start + i + 1) + '</td>' +
-      '<td><b>' + esc(t.name) + '</b></td>' +
-      '<td>' + esc(t.description || '—') + '</td>' +
+      '<td><code class="mcp-tool-name" data-copy="' + esc(t.name) + '" ' +
+      'title="完整 MCP Tool 名：' + esc(t.name) + '（点击复制）">' + esc(t.name) + '</code></td>' +
+      '<td>' + mcpApiCell(t) + '</td>' +
+      '<td class="mcp-tool-desc">' + esc(t.description || '—') + '</td>' +
       '<td>' + ((t.required || []).length
         ? t.required.map(r => '<span class="env-chip">' + esc(r) + '</span>').join(' ')
-        : '<span style="opacity:.5">无</span>') + '</td></tr>'
+        : '<span class="mcp-none">无</span>') + '</td></tr>'
     ).join('') +
     '</tbody></table>' + mcpPager('mtp', _mcpToolPage, pages, total, rows.length);
 }
@@ -960,6 +982,27 @@ function bindMcpEvents() {
     });
   };
   pagerBind('#mcpToolTable', 'mtp', p => renderMcpToolPage(p));
+
+  // 工具清单：点击工具名复制完整 MCP Tool 名
+  const toolBox = $('#mcpToolTable');
+  if (toolBox) {
+    toolBox.addEventListener('click', e => {
+      const c = e.target.closest && e.target.closest('[data-copy]');
+      if (!c) return;
+      const text = c.dataset.copy;
+      const done = () => toast('已复制：' + text, 1800, 'ok');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => fallback());
+      } else fallback();
+      function fallback() {
+        const ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); done(); } catch (err) { toast('复制失败', 1800, 'bad'); }
+        ta.remove();
+      }
+    });
+  }
   pagerBind('#mcpParamsTable', 'mpp', p => { _mcpParamPage = p; renderMcpParams(_mcpParamSum); });
 
   // 场景列表：点击任一行/「详情」→ 场景详情页（该场景下全部用例）
