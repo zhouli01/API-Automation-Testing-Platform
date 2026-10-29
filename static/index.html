@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>接口自动化测试平台</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<!-- ======================= 顶栏 ======================= -->
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">AT</span>
+    <div class="brand-text">
+      <h1>接口自动化测试平台</h1>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="userbox">
+      <button class="user-chip" id="btnUserMenu" aria-haspopup="true" aria-expanded="false">
+        <span class="avatar" id="userAvatar">—</span>
+        <span class="user-meta">
+          <b id="whoami">—</b>
+          <em id="userRole">—</em>
+        </span>
+        <span class="caret">▾</span>
+      </button>
+      <div class="user-menu" id="userMenu" hidden>
+        <div class="um-head">
+          <span class="avatar lg" id="umAvatar">—</span>
+          <div class="um-id">
+            <b id="umName">—</b>
+            <span id="umSub">—</span>
+          </div>
+        </div>
+        <!-- 用户中心已停用：单用户模式（默认 zhouli），登录页不再使用 -->
+        <button class="um-item" data-um="users" hidden>用户中心</button>
+        <button class="um-item" data-um="password" hidden>修改密码</button>
+        <button class="um-item danger" data-um="logout" hidden>退出登录</button>
+      </div>
+    </div>
+    <button class="btn ghost sm" id="btnReload">重新扫描</button>
+  </div>
+</header>
+
+<div class="shell">
+
+  <!-- ======================= 左侧菜单 ======================= -->
+  <nav class="menu">
+    <button class="menu-item active" data-page="cases">
+      <span class="mi-icon">▦</span><span class="mi-text">测试用例</span>
+    </button>
+    <button class="menu-item" data-page="scenarios">
+      <span class="mi-icon">☰</span><span class="mi-text">测试场景</span>
+    </button>
+    <button class="menu-item" data-page="history">
+      <span class="mi-icon">◷</span><span class="mi-text">运行记录</span>
+    </button>
+    <button class="menu-item" data-page="settings">
+      <span class="mi-icon">⚙</span><span class="mi-text">系统设置</span>
+    </button>
+    <!-- 用户中心已停用：单用户模式（默认 zhouli） -->
+    <div class="menu-group" id="menuGroupUsers" hidden>
+      <button class="menu-item" data-page="users" data-sub="profile" id="menuUsersRoot">
+        <span class="mi-icon">◎</span><span class="mi-text">用户中心</span>
+        <span class="mi-caret">▾</span>
+      </button>
+      <div class="submenu" id="usersSubmenu" hidden>
+        <button class="submenu-item active" data-page="users" data-sub="profile">个人资料</button>
+        <button class="submenu-item" data-page="users" data-sub="list">用户列表</button>
+      </div>
+    </div>
+
+    <div class="menu-foot">
+      <div class="mf-label">用例目录</div>
+      <div class="mf-path" id="caseDirText"></div>
+    </div>
+  </nav>
+
+  <!-- ======================= 内容区 ======================= -->
+  <main class="page-area">
+
+    <!-- ---------------- 测试用例 ---------------- -->
+    <section class="page" id="page-cases">
+      <div class="page-head">
+        <h2>测试用例</h2>
+        <div class="page-head-right">
+          <span class="page-desc">勾选需要的用例即可批量执行；标签可直接在行内编辑（回车添加、点 × 删除）；点击行可查看用例详情</span>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><b id="stCases">0</b><span>用例总数</span></div>
+        <div class="stat"><b id="stSelected">0</b><span>已勾选</span></div>
+        <div class="stat ok"><b id="stPass">0</b><span>通过</span></div>
+        <div class="stat bad"><b id="stFail">0</b><span>失败</span></div>
+        <div class="stat"><b id="stTime">0</b><span>本次耗时(ms)</span></div>
+      </div>
+
+      <div class="filterbar">
+        <div class="fb-row fb-row-input">
+          <input type="search" class="fb-input search-lg" id="searchBox"
+                 placeholder="搜索用例名称 / 接口名称 / 标签（多个关键词用空格分隔）" />
+          <span class="fb-count" id="filterCount"></span>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <button class="btn ghost sm" id="btnSelectAll">全选</button>
+          <button class="btn ghost sm" id="btnInvert">反选</button>
+          <button class="btn ghost sm" id="btnClear">清空勾选</button>
+          <span class="divider"></span>
+          <button class="btn ghost sm" id="btnSaveScenario">存为测试场景</button>
+        </div>
+        <div class="toolbar-right">
+          <select id="runMode" title="执行方式">
+            <option value="seq">顺序执行</option>
+            <option value="failfast">遇错即停</option>
+          </select>
+          <button class="btn danger ghost sm" id="btnClearResults">清空结果</button>
+          <button class="btn primary" id="btnRun" disabled>执行选中 (0)</button>
+        </div>
+      </div>
+
+      <div class="warn-bar" id="warnBar" hidden></div>
+      <div class="case-list" id="caseList">
+        <div class="empty-state"><div class="empty-icon">⚙</div><p>正在加载用例…</p></div>
+      </div>
+    </section>
+
+    <!-- ---------------- 测试场景 ---------------- -->
+    <section class="page" id="page-scenarios" hidden>
+      <div class="page-head">
+        <h2>测试场景</h2>
+        <div class="page-head-right">
+          <button class="btn ghost sm" id="btnRefreshScenarios">刷新</button>
+          <button class="btn primary sm" id="btnNewScenario">新建场景</button>
+        </div>
+      </div>
+      <div class="hint">按创建时间倒序排列，最新的场景在最上面。点击任意一行查看场景下的用例明细；表格底部分页，每页 10 条。</div>
+      <div class="table-wrap" id="scenarioTable"></div>
+    </section>
+
+    <!-- ---------------- 运行记录 ---------------- -->
+    <section class="page" id="page-history" hidden>
+      <div class="page-head">
+        <h2>运行记录</h2>
+        <div class="page-head-right">
+          <!-- 导出 HTML：按需求隐藏（DOM 保留，避免 JS 绑定失效；如需恢复，删除本元素上的 hidden 属性即可） -->
+          <button class="btn primary sm" id="btnExportHistory" hidden>导出 HTML</button>
+          <button class="btn ghost sm" id="btnRefreshHistory">刷新</button>
+          <button class="btn danger ghost sm" id="btnClearHistory">清空记录</button>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><b id="hsBatch">0</b><span>执行批次</span></div>
+        <div class="stat"><b id="hsCase">0</b><span>累计用例执行</span></div>
+        <div class="stat ok"><b id="hsPass">0</b><span>通过</span></div>
+        <div class="stat bad"><b id="hsFail">0</b><span>失败</span></div>
+        <div class="stat"><b id="hsRate">-</b><span>通过率</span></div>
+      </div>
+      <div class="hint">按时间戳倒序排列，最新的批次在最上面。点击任意一行查看该批次下全部用例的执行记录。</div>
+      <div class="table-wrap" id="historyTable"></div>
+    </section>
+
+    <!-- ---------------- 系统设置 ---------------- -->
+    <section class="page" id="page-settings" hidden>
+      <div class="page-head">
+        <h2>系统设置</h2>
+        <div class="page-head-right">
+          <button class="btn primary sm" id="btnSaveSettings">保存设置</button>
+        </div>
+      </div>
+
+      <div class="settings-grid">
+        <div class="card">
+          <div class="card-head">执行身份</div>
+          <div class="card-body">
+            <label class="field">
+              <span>执行人<em>写入运行记录的「执行用户」字段</em></span>
+              <input type="text" id="setExecutedBy" placeholder="如 zhouli" />
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">请求环境</div>
+          <div class="card-body">
+            <label class="field">
+              <span>Base URL 覆盖<em>留空则使用用例内记录的完整地址</em></span>
+              <input type="text" id="setBaseUrl" placeholder="如 http://10.12.7.250" />
+            </label>
+            <div class="field-row">
+              <label class="field"><span>超时(ms)</span>
+                <input type="number" id="setTimeout" min="1000" step="1000" /></label>
+              <label class="field"><span>并发数</span>
+                <input type="number" id="setConcurrency" min="1" max="8" /></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">断言规则</div>
+          <div class="card-body">
+            <label class="check-inline"><span>校验 HTTP 状态码</span><input type="checkbox" id="setCheckHttp" /></label>
+            <label class="check-inline"><span>校验业务码</span><input type="checkbox" id="setCheckBiz" /></label>
+            <label class="field">
+              <span>业务码字段<em>支持别名（| 分隔），如 status|code</em></span>
+              <input type="text" id="setBizField" placeholder="status|code" />
+            </label>
+            <label class="field">
+              <span>期望 HTTP 状态码<em>逗号分隔</em></span>
+              <input type="text" id="setExpectHttp" placeholder="200,201,202,204" />
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">用例解析</div>
+          <div class="card-body">
+            <label class="field">
+              <span>用户识别规则<em>决定用例归属哪个「测试用户」</em></span>
+              <select id="setUserField"></select>
+            </label>
+            <label class="field">
+              <span>用例目录<em>只读，改目录请设置环境变量 APIFOX_CASE_DIR</em></span>
+              <input type="text" id="setCaseDir" readonly />
+            </label>
+            <button class="btn ghost sm" id="btnReload2">重新扫描用例目录</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">全局变量<em>执行时替换 {{变量}}，可被用户级变量覆盖</em></div>
+          <div class="card-body">
+            <div class="kv-list" id="globalVars"></div>
+            <button class="mini" data-add-var="globalVars">+ 添加变量</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">全局请求头<em>对所有用例生效</em></div>
+          <div class="card-body">
+            <div class="kv-list" id="globalHeaders"></div>
+            <button class="mini" data-add-var="globalHeaders">+ 添加请求头</button>
+          </div>
+        </div>
+
+        <!-- 数据管理：按需求隐藏（DOM 保留，避免 JS 绑定失效；如需恢复，删除本元素上的 hidden 属性即可） -->
+        <div class="card" id="cardDataManage" hidden>
+          <div class="card-head">数据管理</div>
+          <div class="card-body">
+            <label class="field">
+              <span>运行记录保留条数</span>
+              <input type="number" id="setMaxHistory" min="10" max="5000" step="10" />
+            </label>
+            <div class="danger-row">
+              <button class="btn danger ghost sm" id="btnClearHistory2">清空运行记录</button>
+              <button class="btn danger ghost sm" id="btnResetAll">清空全部平台数据</button>
+            </div>
+            <div class="empty-hint" style="margin-top:8px">
+              平台数据保存在 <code>apifox-test-platform/data/</code> 下（meta.json / history.json / scenarios.json）
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- 用户中心 ---------------- -->
+    <section class="page" id="page-users" hidden>
+      <div class="page-head">
+        <h2 id="usersTitle">个人资料</h2>
+        <div class="page-head-right">
+          <span class="page-desc" id="usersPageDesc">查看账号信息、修改密码</span>
+        </div>
+      </div>
+
+      <!-- 二级页面：个人资料 -->
+      <div class="users-panel" id="panelProfile">
+        <div class="users-grid">
+        <div class="card">
+          <div class="card-head">个人资料</div>
+          <div class="card-body">
+            <div class="profile-head">
+              <span class="avatar xl" id="pfAvatar">—</span>
+              <div class="pf-id">
+                <b id="pfName">—</b>
+                <div class="pf-sub" id="pfUsername">—</div>
+                <span class="role-badge" id="pfRole">—</span>
+              </div>
+            </div>
+            <label class="field">
+              <span>显示名<em>运行记录的「执行用户」取这个值</em></span>
+              <input type="text" id="pfDisplayName" maxlength="32" />
+            </label>
+            <label class="field">
+              <span>邮箱<em>选填</em></span>
+              <input type="text" id="pfEmail" placeholder="name@company.com" />
+            </label>
+            <button class="btn primary sm" id="btnSaveProfile">保存资料</button>
+            <div class="meta-grid">
+              <div><span>注册时间</span><b id="pfCreated">—</b></div>
+              <div><span>上次登录</span><b id="pfLastLogin">—</b></div>
+              <div><span>登录 IP</span><b id="pfLastIp">—</b></div>
+              <div><span>账号状态</span><b id="pfStatus">—</b></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">修改密码<em>修改后其他设备上的登录会立即失效</em></div>
+          <div class="card-body">
+            <label class="field">
+              <span>原密码</span>
+              <input type="password" id="pwOld" autocomplete="current-password" placeholder="当前使用的密码" />
+            </label>
+            <label class="field">
+              <span>新密码<em>至少 6 位</em></span>
+              <input type="password" id="pwNew" autocomplete="new-password" placeholder="新密码" />
+            </label>
+            <label class="field">
+              <span>确认新密码</span>
+              <input type="password" id="pwNew2" autocomplete="new-password" placeholder="再输入一次" />
+            </label>
+            <button class="btn primary sm" id="btnChangePwd">修改密码</button>
+          </div>
+        </div>
+        </div>
+      </div>
+
+      <!-- 二级页面：用户列表 -->
+      <div class="users-panel" id="panelList" hidden>
+        <div class="card" id="cardUserList">
+          <div class="card-head has-action">
+            <div class="ch-main">用户列表<em id="userListHint">当前系统中的全部账号</em></div>
+            <button class="btn ghost sm" id="btnRefreshUsers">刷新</button>
+          </div>
+          <div class="card-body">
+            <table class="utable">
+              <thead>
+                <tr>
+                  <th>用户</th><th class="ta-c">角色</th><th class="ta-c">状态</th>
+                  <th>注册时间</th><th>上次登录</th><th id="thUserIp">IP</th>
+                  <th class="ta-c" id="thUserOps">操作</th>
+                </tr>
+              </thead>
+              <tbody id="userRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+</div>
+
+<!-- ======================= 详情抽屉 ======================= -->
+<div class="drawer-mask" id="drawerMask" hidden></div>
+<aside class="drawer" id="drawer" hidden>
+  <div class="drawer-head">
+    <div>
+      <div class="drawer-title" id="dwTitle">详情</div>
+      <div class="drawer-sub" id="dwSub"></div>
+    </div>
+    <div class="drawer-actions">
+      <button class="btn ghost sm" id="btnExportBatch" hidden>导出本批次</button>
+      <button class="btn ghost sm" id="btnCloseDrawer">关闭</button>
+    </div>
+  </div>
+  <div class="drawer-body" id="dwBody"></div>
+</aside>
+
+<!-- ======================= 导出运行记录弹窗 ======================= -->
+<div class="modal-mask" id="exportMask" hidden></div>
+<div class="modal" id="exportModal" hidden>
+  <div class="modal-head">
+    <span>导出运行记录为 HTML</span>
+    <button class="btn ghost sm" id="btnCloseExport">关闭</button>
+  </div>
+  <div class="modal-body">
+    <label class="field">
+      <span>导出范围<em>按时间戳倒序取最近若干批次</em></span>
+      <select id="exScope">
+        <option value="0">全部批次</option>
+        <option value="50">最近 50 个批次</option>
+        <option value="20">最近 20 个批次</option>
+        <option value="10">最近 10 个批次</option>
+        <option value="1">仅最近 1 个批次</option>
+      </select>
+    </label>
+    <label class="field">
+      <span>报告标题<em>留空则使用默认标题</em></span>
+      <input type="text" id="exTitle" placeholder="接口自动化测试运行记录" />
+    </label>
+    <div class="field">
+      <span>内容选项</span>
+      <div class="chk-row">
+        <label class="chk"><input type="checkbox" id="exIncRequest" checked /><span>请求参数（Query / 请求头 / 请求体）</span></label>
+        <label class="chk"><input type="checkbox" id="exIncAssert" checked /><span>断言明细</span></label>
+        <label class="chk"><input type="checkbox" id="exIncBody" checked /><span>响应体（报告中默认收起）</span></label>
+        <label class="chk"><input type="checkbox" id="exOpenBody" /><span>响应体默认展开</span></label>
+      </div>
+    </div>
+    <div class="empty-hint" id="exHint">
+      导出为单个 HTML 文件：样式内嵌、无需联网，可直接双击打开、转发或打印成 PDF。
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn ghost sm" id="btnCancelExport">取消</button>
+    <button class="btn primary sm" id="btnDoExport">导出</button>
+  </div>
+</div>
+
+<!-- ======================= 场景编辑弹窗 ======================= -->
+<div class="modal-mask" id="modalMask" hidden></div>
+<div class="modal" id="modal" hidden>
+  <div class="modal-head">
+    <span id="mdTitle">新建测试场景</span>
+    <button class="btn ghost sm" id="btnCloseModal">关闭</button>
+  </div>
+  <div class="modal-body" id="mdBody"></div>
+  <div class="modal-foot">
+    <button class="btn ghost sm" id="btnCancelModal">取消</button>
+    <button class="btn primary sm" id="btnSaveScenarioModal">保存场景</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="/app.js"></script>
+</body>
+</html>

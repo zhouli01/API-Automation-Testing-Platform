@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>登录 · 接口自动化测试平台</title>
+<link rel="stylesheet" href="/auth.css" />
+</head>
+<body>
+<div class="auth-wrap">
+
+  <!-- 左侧品牌区 -->
+  <aside class="auth-aside">
+    <div class="aside-brand">
+      <span class="brand-mark">AT</span>
+      <span class="brand-name">接口自动化测试平台</span>
+    </div>
+    <h1 class="aside-title">用户中心</h1>
+    <p class="aside-desc">统一账号登录后，用例、场景、运行记录与系统设置才会开放访问。</p>
+    <ul class="aside-points">
+      <li><b>账号隔离</b><span>每次执行都会记入当前登录账号，运行记录可追溯</span></li>
+      <li><b>角色权限</b><span>管理员可管理用户，测试人员专注执行与维护用例</span></li>
+      <li><b>会话安全</b><span>密码加盐哈希存储，登录态 HttpOnly  Cookie，改密即踢下线</span></li>
+    </ul>
+    <div class="aside-foot">本地部署 · 数据仅存于本机 <code>data/users.db</code></div>
+  </aside>
+
+  <!-- 右侧表单区 -->
+  <main class="auth-main">
+    <div class="auth-card">
+      <div class="auth-tabs" role="tablist">
+        <button class="auth-tab active" id="tabLogin" role="tab" aria-selected="true">登录</button>
+        <button class="auth-tab" id="tabRegister" role="tab" aria-selected="false">注册</button>
+        <span class="tab-ink" id="tabInk"></span>
+      </div>
+
+      <div class="setup-tip" id="setupTip" hidden>
+        <span class="tip-icon">①</span>
+        <span>系统里还没有任何账号，<b>第一个注册的账号将自动成为管理员</b>。</span>
+      </div>
+
+      <!-- 登录 -->
+      <form class="auth-form" id="formLogin" autocomplete="on" novalidate>
+        <label class="afield">
+          <span>用户名</span>
+          <input type="text" id="loginUser" name="username" autocomplete="username"
+                 placeholder="请输入用户名" spellcheck="false" />
+        </label>
+        <label class="afield">
+          <span>密码</span>
+          <div class="pwd-wrap">
+            <input type="password" id="loginPwd" name="password" autocomplete="current-password"
+                   placeholder="请输入密码" />
+            <button type="button" class="eye" data-eye="loginPwd" title="显示/隐藏密码">◉</button>
+          </div>
+        </label>
+        <div class="arow">
+          <label class="acheck"><input type="checkbox" id="loginRemember" /> <span>记住我（30 天免登录）</span></label>
+        </div>
+        <button type="submit" class="abtn primary" id="btnLogin">登 录</button>
+        <p class="ahint">还没有账号？<a href="/register" id="goRegister">立即注册</a></p>
+      </form>
+
+      <!-- 注册 -->
+      <form class="auth-form" id="formRegister" autocomplete="on" novalidate hidden>
+        <div class="afield-row">
+          <label class="afield">
+            <span>用户名 <i>登录用</i></span>
+            <input type="text" id="regUser" name="username" autocomplete="username"
+                   placeholder="3~32 位字母/数字/._-" spellcheck="false" />
+          </label>
+          <label class="afield">
+            <span>显示名 <i>运行记录中展示</i></span>
+            <input type="text" id="regName" name="nickname" autocomplete="nickname"
+                   placeholder="如 张三" maxlength="32" />
+          </label>
+        </div>
+        <label class="afield">
+          <span>邮箱 <i>选填</i></span>
+          <input type="email" id="regEmail" name="email" autocomplete="email" placeholder="name@company.com" />
+        </label>
+        <label class="afield">
+          <span>密码</span>
+          <div class="pwd-wrap">
+            <input type="password" id="regPwd" name="new-password" autocomplete="new-password"
+                   placeholder="至少 6 位" />
+            <button type="button" class="eye" data-eye="regPwd" title="显示/隐藏密码">◉</button>
+          </div>
+          <div class="pwd-meter"><span id="pwdBar"></span></div>
+          <div class="pwd-tip" id="pwdTip">至少 6 位，不限制字符类型</div>
+        </label>
+        <label class="afield">
+          <span>确认密码</span>
+          <input type="password" id="regPwd2" autocomplete="new-password" placeholder="再输入一次密码" />
+        </label>
+        <button type="submit" class="abtn primary" id="btnRegister">注册并登录</button>
+        <p class="ahint">已有账号？<a href="/login" id="goLogin">返回登录</a></p>
+      </form>
+
+      <div class="alert" id="alertBox" hidden></div>
+    </div>
+    <div class="auth-copyright">接口自动化测试平台 · 本地服务</div>
+  </main>
+</div>
+
+<script>
+/* ================= 登录 / 注册页逻辑 ================= */
+const $ = s => document.querySelector(s);
+const alertBox = $('#alertBox');
+
+function showAlert(msg, kind) {
+  alertBox.textContent = msg;
+  alertBox.className = 'alert ' + (kind || 'err');
+  alertBox.hidden = false;
+}
+function hideAlert() { alertBox.hidden = true; }
+
+async function callApi(path, body) {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body || {}),
+  });
+  let data = {};
+  try { data = await res.json(); } catch (e) { /* 非 JSON */ }
+  return { ok: res.ok, status: res.status, data };
+}
+
+/* ---------- tab 切换 ---------- */
+function switchMode(mode) {
+  const isLogin = mode === 'login';
+  $('#tabLogin').classList.toggle('active', isLogin);
+  $('#tabRegister').classList.toggle('active', !isLogin);
+  $('#tabLogin').setAttribute('aria-selected', String(isLogin));
+  $('#tabRegister').setAttribute('aria-selected', String(!isLogin));
+  $('#formLogin').hidden = !isLogin;
+  $('#formRegister').hidden = isLogin;
+  $('#tabInk').style.transform = isLogin ? 'translateX(0)' : 'translateX(100%)';
+  hideAlert();
+  history.replaceState(null, '', isLogin ? '/login' : '/register');
+  setTimeout(() => $(isLogin ? '#loginUser' : '#regUser').focus(), 60);
+}
+$('#tabLogin').addEventListener('click', () => switchMode('login'));
+$('#tabRegister').addEventListener('click', () => switchMode('register'));
+$('#goRegister').addEventListener('click', e => { e.preventDefault(); switchMode('register'); });
+$('#goLogin').addEventListener('click', e => { e.preventDefault(); switchMode('login'); });
+
+/* ---------- 密码可见 ---------- */
+document.querySelectorAll('.eye').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const input = document.getElementById(btn.dataset.eye);
+    input.type = input.type === 'password' ? 'text' : 'password';
+    btn.classList.toggle('on', input.type === 'text');
+  });
+});
+
+/* ---------- 密码强度（仅提示，不做拦截） ---------- */
+$('#regPwd').addEventListener('input', e => {
+  const v = e.target.value;
+  let score = 0;
+  if (v.length >= 6) score++;
+  if (v.length >= 10) score++;
+  if (/[A-Za-z]/.test(v)) score += 0.5;
+  if (/[a-z]/.test(v) && /[A-Z]/.test(v)) score += 0.5;
+  if (/\d/.test(v)) score++;
+  if (/[^\w\s]/.test(v)) score++;
+  const pct = Math.min(100, Math.round(score / 5 * 100));
+  const bar = $('#pwdBar');
+  bar.style.width = pct + '%';
+  bar.className = pct < 40 ? 'lv1' : pct < 75 ? 'lv2' : 'lv3';
+  $('#pwdTip').textContent = v ? (pct < 40 ? '偏弱' : pct < 75 ? '中等' : '较强')
+                              : '至少 6 位，不限制字符类型';
+});
+
+/* ---------- 登录 ---------- */
+$('#formLogin').addEventListener('submit', async e => {
+  e.preventDefault();
+  hideAlert();
+  const username = $('#loginUser').value.trim();
+  const password = $('#loginPwd').value;
+  if (!username || !password) { showAlert('请输入用户名和密码'); return; }
+  const btn = $('#btnLogin');
+  btn.disabled = true; btn.textContent = '登录中…';
+  const { ok, data } = await callApi('/api/auth/login', {
+    username, password, remember: $('#loginRemember').checked,
+  });
+  btn.disabled = false; btn.textContent = '登 录';
+  if (!ok) { showAlert(data.error || '登录失败'); return; }
+  showAlert('登录成功，正在进入…', 'ok');
+  location.replace('/');
+});
+
+/* ---------- 注册 ---------- */
+$('#formRegister').addEventListener('submit', async e => {
+  e.preventDefault();
+  hideAlert();
+  const username = $('#regUser').value.trim();
+  const displayName = $('#regName').value.trim();
+  const email = $('#regEmail').value.trim();
+  const password = $('#regPwd').value;
+  const password2 = $('#regPwd2').value;
+
+  if (!/^[A-Za-z0-9_.\-]{3,32}$/.test(username)) {
+    showAlert('用户名需 3~32 位，仅支持字母、数字、下划线、点、短横线'); return;
+  }
+  if (password.length < 6) { showAlert('密码至少 6 位'); return; }
+  if (password !== password2) { showAlert('两次输入的密码不一致'); return; }
+  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { showAlert('邮箱格式不正确'); return; }
+
+  const btn = $('#btnRegister');
+  btn.disabled = true; btn.textContent = '注册中…';
+  const { ok, data } = await callApi('/api/auth/register', {
+    username, password, displayName: displayName || username, email,
+  });
+  btn.disabled = false; btn.textContent = '注册并登录';
+  if (!ok) { showAlert(data.error || '注册失败'); return; }
+  showAlert(data.message || '注册成功，正在进入…', 'ok');
+  location.replace('/');
+});
+
+/* ---------- 初始化：已登录直接进首页；无账号提示先注册 ---------- */
+(async () => {
+  const params = new URLSearchParams(location.search);
+  if (params.get('expired')) showAlert('登录已过期，请重新登录');
+  try {
+    const res = await fetch('/api/auth/me');
+    const me = await res.json();
+    if (me.authenticated) { location.replace('/'); return; }
+    if (me.needSetup) {
+      $('#setupTip').hidden = false;
+      switchMode('register');
+      if (params.get('expired')) showAlert('登录已过期，请重新登录');
+      return;
+    }
+  } catch (err) { /* 忽略 */ }
+  switchMode(location.pathname === '/register' ? 'register' : 'login');
+})();
+</script>
+</body>
+</html>
