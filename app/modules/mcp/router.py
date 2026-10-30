@@ -52,7 +52,12 @@ def _ping():
 
 
 # 工具 description 里的接口声明：'…对应 API: GET /v1/packages/@:namespace/:name/versions'
-_API_DECL_RE = re.compile(r'对应\s*API\s*[:：]\s*([A-Za-z]+)\s+(\S+)')
+# 路径遇到空白或中文/英文左括号即止（避免把「（version 可选）」这类备注吃进路径），
+# 紧随其后的括号备注整段丢弃，保证「接口名称」列干净。
+_API_DECL_RE = re.compile(
+    r'对应\s*API\s*[:：]\s*([A-Za-z]+)\s+([^\s（(]+)'
+    r'(?:\s*[（(][^）)]*[）)])?'
+)
 
 
 def _split_api(desc):
@@ -65,7 +70,10 @@ def _split_api(desc):
     m = _API_DECL_RE.search(desc)
     if not m:
         return '', '', desc
-    method, path = m.group(1).upper(), m.group(2).rstrip('。.;；,，')
+    method, path = m.group(1).upper(), m.group(2).rstrip('。;；,，')
+    # 去掉句末单个句点，但保留路径里的省略号（?name=...）
+    if path.endswith('.') and not path.endswith('...'):
+        path = path[:-1]
     clean = (desc[:m.start()] + desc[m.end():]).strip()
     clean = clean.strip('。.;；,，').strip()
     return method, path, clean

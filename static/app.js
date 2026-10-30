@@ -325,6 +325,7 @@ let _mcpReport = null;           // 回归报告 {data, filter, page, failPage}
 const MCP_REPORT_PAGE_SIZE = 10; // 报告内用例明细每页条数
 const MCP_REPORT_FAIL_PAGE_SIZE = 10; // 报告内失败明细每页条数
 let _mcpScenCases = null;        // 当前场景详情用例（展开行用）
+let _toolApiMap = null;          // MCP 工具名 → 契约接口（apiMethod / apiPath / description）
 
 function setMcpMenuOpen(open) {
   if ($('#mcpSubmenu')) $('#mcpSubmenu').hidden = !open;
@@ -381,7 +382,10 @@ function closeMcpDetail() {
 /* 切到哪个子页面就加载哪个子页面的数据 */
 function loadMcpPanel(name) {
   if (name === 'contract') { loadMcpStatus(); loadMcpTools(); return; }
-  if (name === 'params') { loadMcpSummary().then(s => s && renderMcpParams(s.params)); return; }
+  if (name === 'params') {
+    ensureToolIface().then(() => loadMcpSummary()).then(s => s && renderMcpParams(s.params));
+    return;
+  }
   if (name === 'scenarios') { loadMcpSummary().then(s => s && renderMcpScen(s.scenarios)); return; }
   if (name === 'run') { loadMcpSummary().then(() => loadMcpRuns(1)); return; }
   if (name === 'diff') { loadMcpDiff(); }
@@ -471,6 +475,8 @@ async function loadMcpTools() {
   try {
     const d = await api('/api/mcp/tools');
     _mcpTools = d.tools || [];
+    _toolApiMap = {};                                   // 顺带更新「工具 → 接口」映射
+    _mcpTools.forEach(t => { if (t && t.name) _toolApiMap[t.name] = t; });
     if ($('#mcpToolCount')) $('#mcpToolCount').textContent =
       `共 ${d.total} 个工具（发现于 ${d.generatedAt}）｜接口名称已标注 ${d.withApi != null ? d.withApi : (d.tools || []).filter(t => t.apiPath).length} 个`;
     renderMcpToolPage(1);
@@ -490,10 +496,47 @@ function mcpApiPath(path) {
 
 function mcpApiCell(t) {
   if (!t.apiPath) return '<span class="mcp-none">—</span>';
+  // 契约里部分 apiPath 形如 /v1/deps?name=...（version 可选）：查询串/备注折到第二行弱化显示，
+  // 避免长串把「接口名称」列挤成不规则的两三行
+  const raw = String(t.apiPath);
+  const cut = raw.search(/[?（(]/);
+  const head = cut < 0 ? raw : raw.slice(0, cut);
+  const tail = cut < 0 ? '' : raw.slice(cut);
   const m = (t.apiMethod || '').toLowerCase();
   return '<div class="mcp-api">' +
     '<span class="mcp-method m-' + esc(m) + '">' + esc(t.apiMethod) + '</span>' +
-    '<code class="mcp-path">' + mcpApiPath(t.apiPath) + '</code></div>';
+    '<code class="mcp-path">' + mcpApiPath(head) +
+    (tail ? '<span class="mcp-path-q">' + esc(tail) + '</span>' : '') +
+    '</code></div>';
+}
+
+/* ---------- MCP 工具名 → 真实接口名称（契约映射） ----------
+   参数级用例 / 用例列表 / 场景详情 / 回归报告都只存了 tool 名（如 armory_package_search），
+   真实接口（如 GET /packages/search）需要从契约工具清单里查。此处只拉一次并缓存。 */
+async function ensureToolIface() {
+  if (_toolApiMap) return _toolApiMap;
+  const map = {};
+  try {
+    const d = _mcpTools ? { tools: _mcpTools } : await api('/api/mcp/tools');
+    (d.tools || []).forEach(t => { if (t && t.name) map[t.name] = t; });
+  } catch (e) {
+    /* 契约尚未发现：降级为展示工具名，不阻断页面 */
+  }
+  _toolApiMap = map;
+  return map;
+}
+
+/** 工具名 → 「METHOD /path」纯文本（无契约时为空串，供 title / 搜索使用） */
+function toolIfaceText(tool) {
+  const t = tool && _toolApiMap ? _toolApiMap[tool] : null;
+  return t && t.apiPath ? ((t.apiMethod || '') + ' ' + t.apiPath).trim() : '';
+}
+
+/** 工具名 → 接口名称单元格：有契约显示 METHOD + 路径，无契约降级为工具名 */
+function toolIfaceCell(tool) {
+  const t = tool && _toolApiMap ? _toolApiMap[tool] : null;
+  if (t && t.apiPath) return mcpApiCell(t);
+  return tool ? '<code>' + esc(tool) + '</code>' : '<span class="mcp-none">—</span>';
 }
 
 function renderMcpToolPage(page) {
@@ -551,12 +594,14 @@ function renderMcpParams(sum) {
   const rows = sum.tools.slice(start, start + MCP_PARAM_PAGE_SIZE);
   box.innerHTML =
     '<table class="dt"><thead><tr>' +
-    '<th style="width:60px">#</th><th style="width:290px">工具</th><th style="width:80px">用例数</th>' +
-    '<th style="width:230px">用例分类</th><th>用例示例</th>' +
+    '<th style="width:60px">#</th><th style="width:280px">工具</th><th style="width:250px">接口名称</th>' +
+    '<th style="width:74px">用例数</th>' +
+    '<th style="width:210px">用例分类</th><th>用例示例</th>' +
     '</tr></thead><tbody>' +
     rows.map((t, i) =>
       '<tr><td class="ta-c">' + (start + i + 1) + '</td>' +
       '<td><b>' + esc(t.tool) + '</b></td>' +
+      '<td>' + toolIfaceCell(t.tool) + '</td>' +
       '<td class="ta-c">' + t.count + '</td>' +
       '<td>' + Object.keys(t.cats).map(k =>
         '<span class="env-chip">' + esc(k) + ' ×' + t.cats[k] + '</span>').join(' ') + '</td>' +
@@ -622,6 +667,7 @@ async function openMcpScenDetail(index) {
     body: '<div class="empty-hint">正在加载…</div>',
   });
   try {
+    await ensureToolIface();   // 场景详情需要「接口名称」列
     const d = await api('/api/mcp/scenarios/detail?index=' + encodeURIComponent(index));
     renderMcpScenDetail(d);
   } catch (e) {
@@ -672,8 +718,9 @@ function renderMcpScenDetail(d) {
       : '') +
     '<div class="table-wrap">' +
     '<table class="dt"><thead><tr>' +
-    '<th style="width:50px">#</th><th style="width:260px">用例名称</th><th style="width:230px">工具</th>' +
-    '<th style="width:210px">参数</th><th style="width:130px">提取变量</th><th>说明</th>' +
+    '<th style="width:48px">#</th><th style="width:240px">用例名称</th><th style="width:208px">工具</th>' +
+    '<th style="width:224px">接口名称</th>' +
+    '<th style="width:190px">参数</th><th style="width:120px">提取变量</th><th>说明</th>' +
     '</tr></thead><tbody>' +
     rows.map((c, i) => {
       const idx = start + i;
@@ -683,13 +730,14 @@ function renderMcpScenDetail(d) {
         '<td class="ta-c">' + (idx + 1) + '</td>' +
         '<td><b>' + esc(c.name) + '</b></td>' +
         '<td><code>' + esc(c.tool) + '</code></td>' +
+        '<td>' + toolIfaceCell(c.tool) + '</td>' +
         '<td>' + (argKeys.length ? argKeys.map(k => '<span class="env-chip">' +
           esc(k) + '=' + esc(typeof c.args[k] === 'object' ? JSON.stringify(c.args[k]) : c.args[k]) +
           '</span>').join(' ') : '<span style="opacity:.5">无参</span>') + '</td>' +
         '<td>' + (exKeys.length ? exKeys.map(k => '<span class="env-chip ok">' +
           esc(k) + '</span>').join(' ') : '<span style="opacity:.5">—</span>') + '</td>' +
         '<td style="opacity:.75">' + esc(c.desc || '—') + '</td></tr>' +
-        '<tr class="mcp-exp-row" id="mcpScase-' + idx + '" hidden><td colspan="6">' +
+        '<tr class="mcp-exp-row" id="mcpScase-' + idx + '" hidden><td colspan="7">' +
         mcpScenCaseHtml(c) + '</td></tr>';
     }).join('') +
     '</tbody></table></div>' +
@@ -698,7 +746,10 @@ function renderMcpScenDetail(d) {
 
 function mcpScenCaseHtml(c) {
   const kv = [
-    ['用例 ID', c.caseId], ['所属模块', c.module], ['标签', (c.tags || []).join(' / ') || '—'],
+    ['用例 ID', c.caseId],
+    ['工具', c.tool],
+    ['接口名称', toolIfaceText(c.tool) || '（契约未标注）'],
+    ['所属模块', c.module], ['标签', (c.tags || []).join(' / ') || '—'],
     ['请求', c.method + ' ' + c.url],
   ];
   return '<div class="mcp-case">' +
@@ -770,6 +821,7 @@ async function openMcpReport(batchId) {
     body: '<div class="empty-hint">正在加载运行结果…</div>',
   });
   try {
+    await ensureToolIface();   // 报告明细需要「接口名称」列
     const d = await api('/api/mcp/report?batchId=' + encodeURIComponent(batchId));
     _mcpReport = { data: d, filter: 'all', page: 1, failPage: 1 };
     renderMcpReport();
@@ -827,11 +879,13 @@ function renderMcpReport() {
     const fRows = fails.slice(fStart, fStart + MCP_REPORT_FAIL_PAGE_SIZE);
     html += '<div class="card-head" style="margin-top:14px">失败用例明细<em>共 ' + fails.length + ' 条，需优先处理</em></div>' +
       '<div class="table-wrap"><table class="dt"><thead><tr>' +
-      '<th style="width:50px">#</th><th style="width:300px">用例</th><th style="width:220px">工具</th>' +
-      '<th style="width:70px">HTTP</th><th style="width:90px">耗时</th><th>失败原因</th>' +
+      '<th style="width:46px">#</th><th style="width:270px">用例</th><th style="width:206px">工具</th>' +
+      '<th style="width:206px">接口名称</th>' +
+      '<th style="width:64px">HTTP</th><th style="width:88px">耗时</th><th>失败原因</th>' +
       '</tr></thead><tbody>' +
       fRows.map((r, i) => '<tr><td class="ta-c">' + (fStart + i + 1) + '</td>' +
         '<td><b>' + esc(r.name) + '</b></td><td><code>' + esc(r.tool) + '</code></td>' +
+        '<td>' + toolIfaceCell(r.tool) + '</td>' +
         '<td class="ta-c">' + esc(r.status || '—') + '</td>' +
         '<td class="ta-c">' + r.durationMs + ' ms</td>' +
         '<td style="color:var(--bad)">' + esc(shortText(r.error || '断言未通过', 200)) + '</td></tr>').join('') +
@@ -851,9 +905,10 @@ function renderMcpReport() {
     '</div>' +
     (rows.length ? '' : '<div class="empty-hint">当前筛选下没有用例——本次回归无失败用例，切换「全部」查看完整明细。</div>') +
     '<div class="table-wrap"><table class="dt"><thead><tr>' +
-    '<th style="width:46px">#</th><th style="width:44px">结果</th><th style="width:330px">用例</th>' +
-    '<th style="width:200px">工具</th><th style="width:64px">HTTP</th><th style="width:88px">耗时</th>' +
-    '<th style="width:76px">断言</th><th>说明</th>' +
+    '<th style="width:44px">#</th><th style="width:40px">结果</th><th style="width:290px">用例</th>' +
+    '<th style="width:190px">工具</th><th style="width:200px">接口名称</th>' +
+    '<th style="width:60px">HTTP</th><th style="width:84px">耗时</th>' +
+    '<th style="width:72px">断言</th><th>说明</th>' +
     '</tr></thead><tbody>' +
     rows.map((r, i) => {
       const idx = start + i;
@@ -863,11 +918,12 @@ function renderMcpReport() {
         (r.passed ? '✓' : '✗') + '</td>' +
         '<td>' + esc(r.name) + '</td>' +
         '<td><code>' + esc(r.tool) + '</code></td>' +
+        '<td>' + toolIfaceCell(r.tool) + '</td>' +
         '<td class="ta-c">' + esc(r.status || '—') + '</td>' +
         '<td class="ta-c">' + r.durationMs + ' ms</td>' +
         '<td class="ta-c">' + r.assertsPassed + '/' + r.assertsTotal + '</td>' +
         '<td style="opacity:.75">' + (r.passed ? '通过' : esc(shortText(r.error || '断言未通过', 80))) + '</td></tr>' +
-        '<tr class="mcp-exp-row" id="mcpRpt-' + idx + '" hidden><td colspan="8">' +
+        '<tr class="mcp-exp-row" id="mcpRpt-' + idx + '" hidden><td colspan="9">' +
         mcpReportCaseHtml(r) + '</td></tr>';
     }).join('') +
     '</tbody></table></div>' +
@@ -883,6 +939,8 @@ function mcpReportCaseHtml(r) {
   return '<div class="mcp-case">' +
     '<div class="mcp-kv">' +
     '<div><span>用例 ID</span><b>' + esc(r.caseId) + '</b></div>' +
+    '<div><span>工具</span><b>' + esc(r.tool || '—') + '</b></div>' +
+    '<div><span>接口名称</span><b>' + esc(toolIfaceText(r.tool) || '（契约未标注）') + '</b></div>' +
     '<div><span>请求</span><b>' + esc((req.method || '') + ' ' + (req.url || '')) + '</b></div>' +
     '<div><span>HTTP / 耗时</span><b>' + esc(r.status || '—') + ' / ' + r.durationMs + ' ms（请求 ' + (r.requestMs ?? '—') + ' ms）</b></div>' +
     '<div><span>断言</span><b>' + r.assertsPassed + ' / ' + r.assertsTotal + ' 通过</b></div>' +
@@ -1285,6 +1343,7 @@ async function loadCases(force) {
       wb.innerHTML = data.warnings.map(w => '⚠ ' + esc(w)).join('<br>');
     } else { wb.hidden = true; }
 
+    await ensureToolIface();   // 用例列表的「接口名称」列需要契约映射
     renderCaseList();
     renderSettings();
   } catch (e) {
@@ -1313,7 +1372,7 @@ function visibleCases() {
   if (!tokens.length) return (state.payload ? state.payload.cases : []).slice();
   return (state.payload ? state.payload.cases : []).filter(c => {
     const name = String(c.name || '').toLowerCase();
-    const iface = [c.apiName, c.apiPath, c.module, c.folder, c.url, shortPath(c.url)]
+    const iface = [c.apiName, c.apiPath, c.module, c.folder, c.url, shortPath(c.url), toolIfaceText(c.apiPath)]
       .map(x => String(x || '').toLowerCase()).join(' ');
     const tags = caseTagsOf(c).join(' ');
     return tokens.every(t => name.includes(t) || iface.includes(t) || tags.includes(t));
@@ -1412,14 +1471,22 @@ function renderCaseList() {
 function caseRowHtml(c) {
   const sel = state.selected.has(c.id);
   const tags = state.caseTags[c.id] || [];
-  const apiName = c.apiName || c.module || shortPath(c.url);
-  const apiTip = `${c.apiName ? c.apiName + ' · ' : ''}${c.method} ${c.url}`;
+  // 接口名称：MCP 用例的 apiPath 就是工具名，优先映射到契约里的真实接口（如 GET /packages/search）
+  const iface = c.apiPath && _toolApiMap ? _toolApiMap[c.apiPath] : null;
+  const apiName = (iface && iface.apiPath) ? iface.apiPath : (c.apiName || c.module || shortPath(c.url));
+  const apiMethod = (iface && iface.apiMethod) ? iface.apiMethod : c.method;
+  const apiTip = [
+    iface ? '工具：' + c.apiPath : '',
+    (iface && iface.description) || '',
+    `${apiMethod} ${apiName}`,
+    c.url || '',
+  ].filter(Boolean).join(' · ');
   return `<div class="case-row${sel ? ' selected' : ''}" data-case="${esc(c.id)}">
     <input type="checkbox" data-case-cb="${esc(c.id)}" ${sel ? 'checked' : ''} />
     <span class="case-no" title="测试用例ID：${esc(c.caseNo || '-')}">${esc(c.caseNo || '-')}</span>
     <span class="case-name" title="${esc(c.name)}">${esc(c.name)}</span>
     <span class="case-iface" title="${esc(apiTip)}">
-      <span class="method ${esc(c.method)}">${esc(c.method)}</span>
+      <span class="method ${esc(apiMethod)}">${esc(apiMethod)}</span>
       <span class="iface-name">${esc(apiName)}</span>
     </span>
     <span class="tag-editor case-tags">

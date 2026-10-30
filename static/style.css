@@ -1096,6 +1096,11 @@ table.dt.dt-tools td { vertical-align: top; }
   word-break: normal; overflow-wrap: break-word; line-height: 1.5;
 }
 .mcp-param { font-style: normal; color: var(--accent); font-weight: 600; }
+/* 接口路径的查询串 / 括号备注：折到第二行并弱化，避免挤压列宽 */
+.mcp-path-q {
+  display: block; margin-top: 1px;
+  font-size: 10.5px; color: var(--text-faint); overflow-wrap: anywhere;
+}
 .mcp-tool-desc { color: var(--text-dim); line-height: 1.55; }
 .mcp-none { color: var(--text-faint); }
 html[data-theme="dark"] .mcp-method.m-get { color: #6fd6a6; border-color: #2c5c47; }

@@ -1,0 +1,23 @@
+const puppeteer = require('puppeteer-core');
+const { goto, wait } = require('./nav');
+const EDGE = 'C://Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+(async () => {
+  const b = await puppeteer.launch({ executablePath: EDGE, headless: 'new', args: ['--no-sandbox'] });
+  const p = await b.newPage();
+  await p.setViewport({ width: 1680, height: 1000 });
+  await p.goto('http://127.0.0.1:8788/', { waitUntil: 'networkidle2' });
+  await wait(1000);
+  await goto(p, 'caselist'); await wait(1200);
+  await p.screenshot({ path: 'tools/shot-iface-caselist.png' });
+  await goto(p, 'params'); await wait(1500);
+  await p.screenshot({ path: 'tools/shot-iface-params.png' });
+  await goto(p, 'scenarios'); await wait(1400);
+  await p.click('#mcpScenTable tbody tr'); await wait(1600);
+  await p.screenshot({ path: 'tools/shot-iface-scendetail.png' });
+  await p.click('#btnMcpDetailBack'); await wait(700);
+  await goto(p, 'run'); await wait(1600);
+  await p.click('#mcpRunTable [data-report]'); await wait(2200);
+  await p.screenshot({ path: 'tools/shot-iface-report.png' });
+  await b.close();
+  console.log('shots done');
+})();
