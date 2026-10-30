@@ -1,473 +1,10 @@
 {
   "source": "tools/list (MCP 2024-11-05)",
-  "generatedAt": "2026-10-29 19:09:03",
+  "generatedAt": "2026-10-29 19:11:34",
   "toolPrefix": "armory_",
   "toolCount": 301,
   "armoryToolCount": 101,
   "tools": [
-    {
-      "name": "armory_package_version_files_children",
-      "description": "查看目录下的子文件/子目录。对应 API: GET /v1/packages/@:namespace/:name/v/:version/p/:platform/a/:arch/files-children",
-      "required": [
-        "namespace",
-        "name",
-        "version",
-        "platform",
-        "arch"
-      ],
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": false,
-        "properties": {
-          "arch": {
-            "description": "架构",
-            "type": "string"
-          },
-          "dir": {
-            "description": "目录路径（如 windows/x86-64/lib），缺省为根目录",
-            "type": "string"
-          },
-          "name": {
-            "description": "软件包名称",
-            "type": "string"
-          },
-          "namespace": {
-            "description": "命名空间",
-            "type": "string"
-          },
-          "platform": {
-            "description": "平台",
-            "type": "string"
-          },
-          "repoName": {
-            "description": "仓库别名，不指定则用当前激活的",
-            "type": "string"
-          },
-          "version": {
-            "description": "版本号或 Tag",
-            "type": "string"
-          }
-        },
-        "required": [
-          "namespace",
-          "name",
-          "version",
-          "platform",
-          "arch"
-        ],
-        "type": "object"
-      }
-    },
-    {
-      "name": "armory_namespace_with_permissions",
-      "description": "获取当前用户有指定权限的命名空间列表。对应 API: GET /v1/namespaces/with-permissions",
-      "required": [
-        "permissions"
-      ],
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": false,
-        "properties": {
-          "keyword": {
-            "description": "关键字搜索",
-            "type": "string"
-          },
-          "permissions": {
-            "description": "权限名称",
-            "type": "string"
-          },
-          "repoName": {
-            "description": "仓库别名，不指定则用当前激活的",
-            "type": "string"
-          },
-          "type": {
-            "description": "类型过滤",
-            "enum": [
-              "ALL",
-              "USER",
-              "ORG"
-            ],
-            "type": "string"
-          }
-        },
-        "required": [
-          "permissions"
-        ],
-        "type": "object"
-      }
-    },
-    {
-      "name": "armory_package_transfer_namespace",
-      "description": "跨命名空间转移软件包（需接收方确认）。对应 API: PUT /v1/packages/transfer-namespace",
-      "required": [
-        "name",
-        "targetNamespace"
-      ],
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": false,
-        "properties": {
-          "name": {
-            "description": "软件包名称",
-            "type": "string"
-          },
-          "namespace": {
-            "description": "当前命名空间，默认当前用户命名空间",
-            "type": "string"
-          },
-          "repoName": {
-            "description": "仓库别名，不指定则用当前激活的",
-            "type": "string"
-          },
-          "targetNamespace": {
-            "description": "目标命名空间",
-            "type": "string"
-          },
-          "transferDesc": {
-            "description": "转移说明",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "targetNamespace"
-        ],
-        "type": "object"
-      }
-    },
-    {
-      "name": "armory_namespace_remove_member",
-      "description": "移除空间成员。对应 API: DELETE /namespaces/:namespace/members/:userId",
-      "required": [
-        "namespace",
-        "userId"
-      ],
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": false,
-        "properties": {
-          "namespace": {
-            "description": "命名空间名称",
-            "type": "string"
-          },
-          "repoName": {
-            "description": "仓库别名，不指定则用当前激活的",
-            "type": "string"
-          },
-          "userId": {
-            "description": "要移除的用户 ID",
-            "type": "string"
-          }
-        },
-        "required": [
-          "namespace",
-          "userId"
-        ],
-        "type": "object"
-      }
-    },
-    {
-      "name": "armory_issue_comments_list",
-      "description": "获取问题的评论列表。对应 API: GET /issues/comments/list",
-      "required": [
-        "issueId"
-      ],
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": false,
-        "properties": {
-          "issueId": {
-            "description": "问题 ID",
-            "type": "string"
-          },
-          "repoName": {
-            "description": "仓库别名，不指定则用当前激活的",
-            "type": "string"
-          }
-        },
-        "required": [
-          "issueId"
-        ],
-        "type": "object"
-      }
-    },
-    {
-      "name": "armory_package_status",
-      "description": "检查软件包或版本状态。对应 API: GET /v1/packages/status",
-      "required": [
-        "namespace",
-        "name"
-      ],
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": false,
-        "properties": {
-          "name": {
-            "description": "软件包名称",
-            "type": "string"
-          },
-          "namespace": {
-            "description": "命名空间",
-            "type": "string"
-          },
-          "repoName": {
-            "description": "仓库别名，不指定则用当前激活的",
-            "type": "string"
-          },
-          "version": {
-            "description": "版本号或 Tag",
-            "type": "string"
-          }
-        },
-        "required": [
-          "namespace",
-          "name"
-        ],
-        "type": "object"
-      }
-    },
-    {
-      "name": "armory_platform_validate",
-      "description": "验证平台名称是否合法。对应 API: POST /v1/standard/platforms/validate",
-      "required": [
-        "name"
-      ],
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": false,
-        "properties": {
-          "name": {
-            "description": "平台名称",
-            "type": "string"
-          },
-          "repoName": {
-            "description": "仓库别名，不指定则用当前激活的",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "type": "object"
-      }
-    },
-    {
-      "name": "armory_version_info",
-      "description": "获取指定版本的详细信息（含 Release、Blob 列表）。对应 API: GET /v1/packages/@:namespace/:name/v/:version/detail",
-      "required": [
-        "namespace",
-        "name",
-        "version"
-      ],
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": false,
-        "properties": {
-          "name": {
-            "description": "软件包名称",
-            "type": "string"
-          },
-          "namespace": {
-            "description": "命名空间名称",
-            "type": "string"
-          },
-          "repoName": {
-            "description": "仓库别名，不指定则用当前激活的",
-            "type": "string"
-          },
-          "version": {
-            "description": "版本号或 Tag（如 latest）",
-            "type": "string"
-          }
-        },
-        "required": [
-          "namespace",
-          "name",
-          "version"
-        ],
-        "type": "object"
-      }
-    },
-    {
-      "name": "armory_my_subscriptions",
-      "description": "获取我关注的问题列表。对应 API: GET /issues/my/subscriptions",
-      "required": [],
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": false,
-        "properties": {
-          "repoName": {
-            "description": "仓库别名，不指定则用当前激活的",
-            "type": "string"
-          }
-        },
-        "type": "object"
-      }
-    },
-    {
-      "name": "armory_package_version_platforms",
-      "description": "获取指定版本的平台/架构列表。对应 API: GET /v1/packages/@:namespace/:name/v/:version/platforms",
-      "required": [
-        "namespace",
-        "name",
-        "version"
-      ],
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": false,
-        "properties": {
-          "name": {
-            "description": "软件包名称",
-            "type": "string"
-          },
-          "namespace": {
-            "description": "命名空间",
-            "type": "string"
-          },
-          "repoName": {
-            "description": "仓库别名，不指定则用当前激活的",
-            "type": "string"
-          },
-          "version": {
-            "description": "版本号或 Tag",
-            "type": "string"
-          }
-        },
-        "required": [
-          "namespace",
-          "name",
-          "version"
-        ],
-        "type": "object"
-      }
-    },
-    {
-      "name": "armory_namespace_search_users",
-      "description": "搜索用户（用于添加成员）。对应 API: GET /v1/namespaces/members/users",
-      "required": [],
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": false,
-        "properties": {
-          "keyword": {
-            "description": "搜索关键字（用户名/邮箱）",
-            "type": "string"
-          },
-          "repoName": {
-            "description": "仓库别名，不指定则用当前激活的",
-            "type": "string"
-          }
-        },
-        "type": "object"
-      }
-    },
-    {
-      "name": "armory_package_transfer_to_user",
-      "description": "将组织 Package 转移到用户空间。对应 API: PUT /v1/packages/transfer-to-user",
-      "required": [
-        "name",
-        "userId"
-      ],
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": false,
-        "properties": {
-          "name": {
-            "description": "软件包名称",
-            "type": "string"
-          },
-          "namespace": {
-            "description": "当前命名空间，默认当前用户命名空间",
-            "type": "string"
-          },
-          "repoName": {
-            "description": "仓库别名，不指定则用当前激活的",
-            "type": "string"
-          },
-          "userId": {
-            "description": "接收用户 ID",
-            "type": "number"
-          }
-        },
-        "required": [
-          "name",
-          "userId"
-        ],
-        "type": "object"
-      }
-    },
-    {
-      "name": "armory_webhook_update",
-      "description": "更新Webhook配置。对应 API: PUT /webhooks/:id",
-      "required": [
-        "id",
-        "url"
-      ],
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": false,
-        "properties": {
-          "eventType": {
-            "description": "事件类型，默认 PUBLISH",
-            "enum": [
-              "PUBLISH"
-            ],
-            "type": "string"
-          },
-          "id": {
-            "description": "Webhook ID",
-            "type": "string"
-          },
-          "method": {
-            "description": "请求方法，默认 POST",
-            "enum": [
-              "POST"
-            ],
-            "type": "string"
-          },
-          "name": {
-            "description": "Webhook名称",
-            "type": "string"
-          },
-          "repoName": {
-            "description": "仓库别名，不指定则用当前激活的",
-            "type": "string"
-          },
-          "status": {
-            "description": "启用状态，默认 enable",
-            "enum": [
-              "enable",
-              "disable"
-            ],
-            "type": "string"
-          },
-          "template": {
-            "description": "模板，默认 JENKINS",
-            "enum": [
-              "JENKINS"
-            ],
-            "type": "string"
-          },
-          "token": {
-            "description": "令牌",
-            "type": "string"
-          },
-          "url": {
-            "description": "回调 URL",
-            "type": "string"
-          },
-          "username": {
-            "description": "用户名",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "url"
-        ],
-        "type": "object"
-      }
-    },
     {
       "name": "armory_namespace_settings_update",
       "description": "更新空间设置（发布/转移确认开关）。对应 API: PUT /namespaces/settings",
@@ -3312,6 +2849,469 @@
         "required": [
           "namespace",
           "name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "armory_package_version_files_children",
+      "description": "查看目录下的子文件/子目录。对应 API: GET /v1/packages/@:namespace/:name/v/:version/p/:platform/a/:arch/files-children",
+      "required": [
+        "namespace",
+        "name",
+        "version",
+        "platform",
+        "arch"
+      ],
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "arch": {
+            "description": "架构",
+            "type": "string"
+          },
+          "dir": {
+            "description": "目录路径（如 windows/x86-64/lib），缺省为根目录",
+            "type": "string"
+          },
+          "name": {
+            "description": "软件包名称",
+            "type": "string"
+          },
+          "namespace": {
+            "description": "命名空间",
+            "type": "string"
+          },
+          "platform": {
+            "description": "平台",
+            "type": "string"
+          },
+          "repoName": {
+            "description": "仓库别名，不指定则用当前激活的",
+            "type": "string"
+          },
+          "version": {
+            "description": "版本号或 Tag",
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "name",
+          "version",
+          "platform",
+          "arch"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "armory_namespace_with_permissions",
+      "description": "获取当前用户有指定权限的命名空间列表。对应 API: GET /v1/namespaces/with-permissions",
+      "required": [
+        "permissions"
+      ],
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "keyword": {
+            "description": "关键字搜索",
+            "type": "string"
+          },
+          "permissions": {
+            "description": "权限名称",
+            "type": "string"
+          },
+          "repoName": {
+            "description": "仓库别名，不指定则用当前激活的",
+            "type": "string"
+          },
+          "type": {
+            "description": "类型过滤",
+            "enum": [
+              "ALL",
+              "USER",
+              "ORG"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "permissions"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "armory_package_transfer_namespace",
+      "description": "跨命名空间转移软件包（需接收方确认）。对应 API: PUT /v1/packages/transfer-namespace",
+      "required": [
+        "name",
+        "targetNamespace"
+      ],
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "软件包名称",
+            "type": "string"
+          },
+          "namespace": {
+            "description": "当前命名空间，默认当前用户命名空间",
+            "type": "string"
+          },
+          "repoName": {
+            "description": "仓库别名，不指定则用当前激活的",
+            "type": "string"
+          },
+          "targetNamespace": {
+            "description": "目标命名空间",
+            "type": "string"
+          },
+          "transferDesc": {
+            "description": "转移说明",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "targetNamespace"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "armory_namespace_remove_member",
+      "description": "移除空间成员。对应 API: DELETE /namespaces/:namespace/members/:userId",
+      "required": [
+        "namespace",
+        "userId"
+      ],
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "namespace": {
+            "description": "命名空间名称",
+            "type": "string"
+          },
+          "repoName": {
+            "description": "仓库别名，不指定则用当前激活的",
+            "type": "string"
+          },
+          "userId": {
+            "description": "要移除的用户 ID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "userId"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "armory_issue_comments_list",
+      "description": "获取问题的评论列表。对应 API: GET /issues/comments/list",
+      "required": [
+        "issueId"
+      ],
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "issueId": {
+            "description": "问题 ID",
+            "type": "string"
+          },
+          "repoName": {
+            "description": "仓库别名，不指定则用当前激活的",
+            "type": "string"
+          }
+        },
+        "required": [
+          "issueId"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "armory_package_status",
+      "description": "检查软件包或版本状态。对应 API: GET /v1/packages/status",
+      "required": [
+        "namespace",
+        "name"
+      ],
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "软件包名称",
+            "type": "string"
+          },
+          "namespace": {
+            "description": "命名空间",
+            "type": "string"
+          },
+          "repoName": {
+            "description": "仓库别名，不指定则用当前激活的",
+            "type": "string"
+          },
+          "version": {
+            "description": "版本号或 Tag",
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "armory_platform_validate",
+      "description": "验证平台名称是否合法。对应 API: POST /v1/standard/platforms/validate",
+      "required": [
+        "name"
+      ],
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "平台名称",
+            "type": "string"
+          },
+          "repoName": {
+            "description": "仓库别名，不指定则用当前激活的",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "armory_version_info",
+      "description": "获取指定版本的详细信息（含 Release、Blob 列表）。对应 API: GET /v1/packages/@:namespace/:name/v/:version/detail",
+      "required": [
+        "namespace",
+        "name",
+        "version"
+      ],
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "软件包名称",
+            "type": "string"
+          },
+          "namespace": {
+            "description": "命名空间名称",
+            "type": "string"
+          },
+          "repoName": {
+            "description": "仓库别名，不指定则用当前激活的",
+            "type": "string"
+          },
+          "version": {
+            "description": "版本号或 Tag（如 latest）",
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "name",
+          "version"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "armory_my_subscriptions",
+      "description": "获取我关注的问题列表。对应 API: GET /issues/my/subscriptions",
+      "required": [],
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "repoName": {
+            "description": "仓库别名，不指定则用当前激活的",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "armory_package_version_platforms",
+      "description": "获取指定版本的平台/架构列表。对应 API: GET /v1/packages/@:namespace/:name/v/:version/platforms",
+      "required": [
+        "namespace",
+        "name",
+        "version"
+      ],
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "软件包名称",
+            "type": "string"
+          },
+          "namespace": {
+            "description": "命名空间",
+            "type": "string"
+          },
+          "repoName": {
+            "description": "仓库别名，不指定则用当前激活的",
+            "type": "string"
+          },
+          "version": {
+            "description": "版本号或 Tag",
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "name",
+          "version"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "armory_namespace_search_users",
+      "description": "搜索用户（用于添加成员）。对应 API: GET /v1/namespaces/members/users",
+      "required": [],
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "keyword": {
+            "description": "搜索关键字（用户名/邮箱）",
+            "type": "string"
+          },
+          "repoName": {
+            "description": "仓库别名，不指定则用当前激活的",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "armory_package_transfer_to_user",
+      "description": "将组织 Package 转移到用户空间。对应 API: PUT /v1/packages/transfer-to-user",
+      "required": [
+        "name",
+        "userId"
+      ],
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "软件包名称",
+            "type": "string"
+          },
+          "namespace": {
+            "description": "当前命名空间，默认当前用户命名空间",
+            "type": "string"
+          },
+          "repoName": {
+            "description": "仓库别名，不指定则用当前激活的",
+            "type": "string"
+          },
+          "userId": {
+            "description": "接收用户 ID",
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "userId"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "armory_webhook_update",
+      "description": "更新Webhook配置。对应 API: PUT /webhooks/:id",
+      "required": [
+        "id",
+        "url"
+      ],
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "eventType": {
+            "description": "事件类型，默认 PUBLISH",
+            "enum": [
+              "PUBLISH"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "description": "Webhook ID",
+            "type": "string"
+          },
+          "method": {
+            "description": "请求方法，默认 POST",
+            "enum": [
+              "POST"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "description": "Webhook名称",
+            "type": "string"
+          },
+          "repoName": {
+            "description": "仓库别名，不指定则用当前激活的",
+            "type": "string"
+          },
+          "status": {
+            "description": "启用状态，默认 enable",
+            "enum": [
+              "enable",
+              "disable"
+            ],
+            "type": "string"
+          },
+          "template": {
+            "description": "模板，默认 JENKINS",
+            "enum": [
+              "JENKINS"
+            ],
+            "type": "string"
+          },
+          "token": {
+            "description": "令牌",
+            "type": "string"
+          },
+          "url": {
+            "description": "回调 URL",
+            "type": "string"
+          },
+          "username": {
+            "description": "用户名",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "url"
         ],
         "type": "object"
       }

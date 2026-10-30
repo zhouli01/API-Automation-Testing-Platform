@@ -1,7 +1,7 @@
 {
   "name": "MCP armory 场景级用例（4b · 状态依赖链路）",
   "generatedBy": "mcp/generator",
-  "generatedAt": "2026-10-29 18:01:31",
+  "generatedAt": "2026-10-29 19:21:09",
   "gateway": "http://10.12.7.250/api/mcp/gateway",
   "scenarios": [
     {
