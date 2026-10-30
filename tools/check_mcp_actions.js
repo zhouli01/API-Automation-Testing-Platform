@@ -1,4 +1,5 @@
 const puppeteer = require('puppeteer-core');
+const { goto } = require('./nav');
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
 (async () => {
@@ -16,13 +17,11 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
   await page.goto('http://127.0.0.1:8788/', { waitUntil: 'networkidle2' });
   await wait(800);
-  await page.click('#menuMcpRoot');
-  await wait(500);
 
   const out = {};
 
   // ⑤ Diff 页面点「立即 Diff」
-  await page.click('#mcpSubmenu .mcp-sub[data-msub="diff"]');
+  await goto(page, 'diff');
   await wait(1500);
   await page.click('#btnMcpDiff');
   await wait(3000);
@@ -34,7 +33,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   }));
 
   // ② 参数级：重新生成
-  await page.click('#mcpSubmenu .mcp-sub[data-msub="params"]');
+  await goto(page, 'params');
   await wait(1200);
   await page.click('#btnMcpGenParams');
   await wait(3000);
@@ -47,7 +46,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   }));
 
   // ③ 场景级：执行链路
-  await page.click('#mcpSubmenu .mcp-sub[data-msub="scenarios"]');
+  await goto(page, 'scenarios');
   await wait(1200);
   await page.click('#btnMcpRunScen');
   await wait(6000);
@@ -58,7 +57,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await page.screenshot({ path: 'tools/shot-mcp-scen-run.png' });
 
   // ④ 一键回归
-  await page.click('#mcpSubmenu .mcp-sub[data-msub="run"]');
+  await goto(page, 'run');
   await wait(1200);
   await page.click('#btnMcpRegression');
   await wait(12000);

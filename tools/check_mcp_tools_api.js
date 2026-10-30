@@ -1,4 +1,5 @@
 const puppeteer = require('puppeteer-core');
+const { goto } = require('./nav');
 const wait = ms => new Promise(r => setTimeout(r, ms));
 (async () => {
   const b = await puppeteer.launch({
@@ -12,8 +13,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await p.setViewport({ width: 1500, height: 1100 });
   await p.goto('http://127.0.0.1:8788/', { waitUntil: 'networkidle2' });
   await wait(900);
-  await p.click('#menuMcpRoot'); await wait(400);
-  await p.click('#mcpSubmenu .mcp-sub[data-msub="contract"]'); await wait(1600);
+  await goto(p, 'contract'); await wait(1600);
 
   const head = await p.evaluate(() => [...document.querySelectorAll('#mcpToolTable thead th')].map(th => th.innerText.trim()));
   const first = await p.evaluate(() => {

@@ -1,5 +1,6 @@
 // 验证：场景详情跳转 / 用例展开 / 回归记录分页 / 回归报告
 const puppeteer = require('puppeteer-core');
+const { goto } = require('./nav');
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
 (async () => {
@@ -17,13 +18,11 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
   await page.goto('http://127.0.0.1:8788/', { waitUntil: 'networkidle2' });
   await wait(900);
-  await page.click('#menuMcpRoot');
-  await wait(500);
 
   const out = { errors };
 
-  // ① 场景级：点链路行跳转详情
-  await page.click('#mcpSubmenu .mcp-sub[data-msub="scenarios"]');
+  // ① 场景级（测试场景页标签）：点链路行跳转详情
+  await goto(page, 'scenarios');
   await wait(1500);
   out.scenRows = await page.evaluate(() =>
     [...document.querySelectorAll('#mcpScenTable tbody tr')].map(tr => tr.innerText.replace(/\s+/g, ' ').slice(0, 60)));
@@ -31,8 +30,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await page.click('#mcpScenTable tbody tr');
   await wait(1500);
   out.detail1 = await page.evaluate(() => ({
-    visible: !document.querySelector('#mcpPanel-detail').hidden,
-    scenPanelHidden: document.querySelector('#mcpPanel-scenarios') ? document.querySelector('#mcpPanel-scenarios').hidden : null,
+    visible: !document.querySelector('#page-mcpdetail').hidden,
+    scenTabVisible: !document.querySelector('#scenTab-mcp').hidden,
     title: document.querySelector('#mcpDetailTitle').textContent.trim(),
     sub: document.querySelector('#mcpDetailSub').textContent.trim(),
     chips: [...document.querySelectorAll('#mcpDetailBody .chip')].map(c => c.textContent.trim()).slice(0, 8),
@@ -59,12 +58,13 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await page.click('#btnMcpDetailBack');
   await wait(900);
   out.backOk = await page.evaluate(() => ({
-    detailHidden: document.querySelector('#mcpPanel-detail').hidden,
-    scenVisible: !document.querySelector('#mcpPanel-scenarios').hidden,
+    detailHidden: document.querySelector('#page-mcpdetail').hidden,
+    scenVisible: !document.querySelector('#scenTab-mcp').hidden,
+    page: (document.querySelector('.page.active') || {}).id,
   }));
 
   // ③ 一键回归：分页
-  await page.click('#mcpSubmenu .mcp-sub[data-msub="run"]');
+  await goto(page, 'run');
   await wait(1500);
   out.runs = await page.evaluate(() => ({
     rows: document.querySelectorAll('#mcpRunTable tbody tr').length,
@@ -80,7 +80,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   out.report = await page.evaluate(() => {
     const body = document.querySelector('#mcpDetailBody');
     return {
-      visible: !document.querySelector('#mcpPanel-detail').hidden,
+      visible: !document.querySelector('#page-mcpdetail').hidden,
       title: document.querySelector('#mcpDetailTitle').textContent.trim(),
       cards: [...body.querySelectorAll('.mcp-rpt')].map(c => c.innerText.replace(/\s+/g, ' ').trim()).slice(0, 6),
       failRows: body.querySelectorAll('table.dt tbody tr').length,
@@ -91,7 +91,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   });
 
   // 仅失败筛选
-  const failedBtn = await page.$('#mcpDetailBody [data-rpf="failed"]');
+  const failedBtn = await page.$('#mcpDetailBody [data-rpf="fail"]');
   if (failedBtn) { await failedBtn.click(); await wait(600); }
   out.filterFailed = await page.evaluate(() => ({
     caseRows: document.querySelectorAll('#mcpDetailBody tr[data-rexp]').length,

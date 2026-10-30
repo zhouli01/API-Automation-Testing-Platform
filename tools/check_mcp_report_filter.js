@@ -1,5 +1,6 @@
 // 专项验证：报告页「仅失败」筛选 + 明细分页（构造 202 条批次验证翻页）
 const puppeteer = require('puppeteer-core');
+const { goto } = require('./nav');
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
 (async () => {
@@ -16,9 +17,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
   await page.goto('http://127.0.0.1:8788/', { waitUntil: 'networkidle2' });
   await wait(900);
-  await page.click('#menuMcpRoot');
-  await wait(400);
-  await page.click('#mcpSubmenu .mcp-sub[data-msub="run"]');
+  await goto(page, 'run');
   await wait(1500);
 
   const out = { errors };

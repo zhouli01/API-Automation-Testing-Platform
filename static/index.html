@@ -49,6 +49,10 @@
 
   <!-- ======================= 左侧菜单 ======================= -->
   <nav class="menu">
+    <!-- 契约发现：一级菜单（契约驱动流程第 1 步，独立成页） -->
+    <button class="menu-item" data-page="contract">
+      <span class="mi-icon">⟐</span><span class="mi-text">契约发现</span>
+    </button>
     <button class="menu-item active" data-page="cases">
       <span class="mi-icon">▦</span><span class="mi-text">测试用例</span>
     </button>
@@ -73,18 +77,15 @@
       </div>
     </div>
 
-    <!-- MCP 测试（契约驱动）：契约发现 / 参数用例 / 场景用例 / 一键回归 / Schema Diff -->
+    <!-- MCP 测试（契约驱动）：一键回归 / Schema Diff -->
     <div class="menu-group" id="menuGroupMcp">
-      <button class="menu-item" data-page="mcp" data-sub="contract" id="menuMcpRoot">
-        <span class="mi-icon">⟐</span><span class="mi-text">MCP 测试</span>
+      <button class="menu-item" data-page="mcp" data-sub="run" id="menuMcpRoot">
+        <span class="mi-icon">◈</span><span class="mi-text">MCP 测试</span>
         <span class="mi-caret">▾</span>
       </button>
       <div class="submenu" id="mcpSubmenu" hidden>
-        <button class="submenu-item mcp-sub active" data-msub="contract">① 契约发现</button>
-        <button class="submenu-item mcp-sub" data-msub="params">② 参数级用例</button>
-        <button class="submenu-item mcp-sub" data-msub="scenarios">③ 场景级用例</button>
-        <button class="submenu-item mcp-sub" data-msub="run">④ 一键回归</button>
-        <button class="submenu-item mcp-sub" data-msub="diff">⑤ Schema Diff</button>
+        <button class="submenu-item mcp-sub active" data-msub="run">一键回归</button>
+        <button class="submenu-item mcp-sub" data-msub="diff">Schema Diff</button>
       </div>
     </div>
 
@@ -97,52 +98,104 @@
   <!-- ======================= 内容区 ======================= -->
   <main class="page-area">
 
+    <!-- ---------------- 契约发现（一级菜单 · 契约驱动第 1 步） ---------------- -->
+    <section class="page" id="page-contract" hidden>
+      <div class="page-head">
+        <h2>契约发现</h2>
+        <div class="page-head-right">
+          <span class="page-desc">从 MCP Server tools/list 自动提取接口契约，导出 contract.json 并与上次快照对比</span>
+        </div>
+      </div>
+
+      <div class="users-panel" id="mcpPanel-contract">
+        <div class="card">
+          <div class="card-head">契约发现（第 1 步）<em>调 tools/list 导出 contract.json，与上次快照 diff</em></div>
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <span class="fb-count" id="mcpGatewayText">网关：—</span>
+            </div>
+            <div class="toolbar-right">
+              <button class="btn primary sm" id="btnMcpDiscover">发现并导出契约</button>
+              <button class="btn ghost sm" id="btnMcpDiffQuick">仅查看 Diff</button>
+            </div>
+          </div>
+          <pre class="mcp-out" id="mcpOutContract">尚未执行契约发现。</pre>
+          <div class="card-head" style="margin-top:14px">发现的工具清单<em id="mcpToolCount"></em></div>
+          <div class="table-wrap" id="mcpToolTable">尚未发现契约。</div>
+        </div>
+      </div>
+    </section>
+
     <!-- ---------------- 测试用例 ---------------- -->
-    <section class="page" id="page-cases">
+    <section class="page active" id="page-cases">
       <div class="page-head">
         <h2>测试用例</h2>
         <div class="page-head-right">
-          <span class="page-desc">勾选需要的用例即可批量执行；标签可直接在行内编辑（回车添加、点 × 删除）；点击行可查看用例详情</span>
+          <div class="seg-tabs" id="caseTabs">
+            <button class="seg-tab active" data-ctab="params">参数级用例<em id="tabCaseParamCount">—</em></button>
+            <button class="seg-tab" data-ctab="list">用例列表<em id="tabCaseListCount">—</em></button>
+          </div>
         </div>
       </div>
 
-      <div class="stats">
-        <div class="stat"><b id="stCases">0</b><span>用例总数</span></div>
-        <div class="stat"><b id="stSelected">0</b><span>已勾选</span></div>
-        <div class="stat ok"><b id="stPass">0</b><span>通过</span></div>
-        <div class="stat bad"><b id="stFail">0</b><span>失败</span></div>
-        <div class="stat"><b id="stTime">0</b><span>本次耗时(ms)</span></div>
-      </div>
-
-      <div class="filterbar">
-        <div class="fb-row fb-row-input">
-          <input type="search" class="fb-input search-lg" id="searchBox"
-                 placeholder="搜索用例名称 / 接口名称 / 标签（多个关键词用空格分隔）" />
-          <span class="fb-count" id="filterCount"></span>
+      <!-- 参数级用例（MCP 4a）：契约按 JSON Schema 规则批量生成 -->
+      <div class="tab-panel" id="casesTab-params">
+        <div class="card">
+          <div class="card-head">参数级用例生成（第 2/4a 步）<em>规则批量：缺必填 / 类型错误 / 只读正常路径 / 未知工具</em></div>
+          <div class="toolbar">
+            <div class="toolbar-left"><span class="fb-count" id="mcpParamsMeta">—</span></div>
+            <div class="toolbar-right">
+              <button class="btn primary sm" id="btnMcpGenParams">重新生成参数级用例</button>
+            </div>
+          </div>
+          <div class="mcp-stats" id="mcpParamsCats"></div>
+          <div class="table-wrap" id="mcpParamsTable">尚未生成参数级用例。</div>
+          <pre class="mcp-out sm" id="mcpOutParams" hidden></pre>
         </div>
       </div>
 
-      <div class="toolbar">
-        <div class="toolbar-left">
-          <button class="btn ghost sm" id="btnSelectAll">全选</button>
-          <button class="btn ghost sm" id="btnInvert">反选</button>
-          <button class="btn ghost sm" id="btnClear">清空勾选</button>
-          <span class="divider"></span>
-          <button class="btn ghost sm" id="btnSaveScenario">存为测试场景</button>
-        </div>
-        <div class="toolbar-right">
-          <select id="runMode" title="执行方式">
-            <option value="seq">顺序执行</option>
-            <option value="failfast">遇错即停</option>
-          </select>
-          <button class="btn danger ghost sm" id="btnClearResults">清空结果</button>
-          <button class="btn primary" id="btnRun" disabled>执行选中 (0)</button>
-        </div>
-      </div>
+      <!-- 用例列表：平台用例目录（Apifox 导出的用例） -->
+      <div class="tab-panel" id="casesTab-list" hidden>
+        <div class="hint">勾选需要的用例即可批量执行；标签可直接在行内编辑（回车添加、点 × 删除）；点击行可查看用例详情</div>
 
-      <div class="warn-bar" id="warnBar" hidden></div>
-      <div class="case-list" id="caseList">
-        <div class="empty-state"><div class="empty-icon">⚙</div><p>正在加载用例…</p></div>
+        <div class="stats">
+          <div class="stat"><b id="stCases">0</b><span>用例总数</span></div>
+          <div class="stat"><b id="stSelected">0</b><span>已勾选</span></div>
+          <div class="stat ok"><b id="stPass">0</b><span>通过</span></div>
+          <div class="stat bad"><b id="stFail">0</b><span>失败</span></div>
+          <div class="stat"><b id="stTime">0</b><span>本次耗时(ms)</span></div>
+        </div>
+
+        <div class="filterbar">
+          <div class="fb-row fb-row-input">
+            <input type="search" class="fb-input search-lg" id="searchBox"
+                   placeholder="搜索用例名称 / 接口名称 / 标签（多个关键词用空格分隔）" />
+            <span class="fb-count" id="filterCount"></span>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <button class="btn ghost sm" id="btnSelectAll">全选</button>
+            <button class="btn ghost sm" id="btnInvert">反选</button>
+            <button class="btn ghost sm" id="btnClear">清空勾选</button>
+            <span class="divider"></span>
+            <button class="btn ghost sm" id="btnSaveScenario">存为测试场景</button>
+          </div>
+          <div class="toolbar-right">
+            <select id="runMode" title="执行方式">
+              <option value="seq">顺序执行</option>
+              <option value="failfast">遇错即停</option>
+            </select>
+            <button class="btn danger ghost sm" id="btnClearResults">清空结果</button>
+            <button class="btn primary" id="btnRun" disabled>执行选中 (0)</button>
+          </div>
+        </div>
+
+        <div class="warn-bar" id="warnBar" hidden></div>
+        <div class="case-list" id="caseList">
+          <div class="empty-state"><div class="empty-icon">⚙</div><p>正在加载用例…</p></div>
+        </div>
       </div>
     </section>
 
@@ -151,12 +204,43 @@
       <div class="page-head">
         <h2>测试场景</h2>
         <div class="page-head-right">
-          <button class="btn ghost sm" id="btnRefreshScenarios">刷新</button>
-          <button class="btn primary sm" id="btnNewScenario">新建场景</button>
+          <div class="seg-tabs" id="scenTabs">
+            <button class="seg-tab active" data-stab="mcp">场景级用例<em id="tabScenMchCount">—</em></button>
+            <button class="seg-tab" data-stab="list">我的场景<em id="tabScenListCount">—</em></button>
+          </div>
         </div>
       </div>
-      <div class="hint">按创建时间倒序排列，最新的场景在最上面。点击任意一行查看场景下的用例明细；表格底部分页，每页 10 条。</div>
-      <div class="table-wrap" id="scenarioTable"></div>
+
+      <!-- 场景级用例（MCP 4b）：状态依赖链路，点击进入场景详情 -->
+      <div class="tab-panel" id="scenTab-mcp">
+        <div class="card">
+          <div class="card-head">场景级链路（第 4b 步）<em>状态依赖：上一步输出提取为变量喂给下一步</em></div>
+          <div class="toolbar">
+            <div class="toolbar-left"><span class="fb-count" id="mcpScenMeta">—</span></div>
+            <div class="toolbar-right">
+              <button class="btn ghost sm" id="btnMcpGenScen">生成场景链路</button>
+              <button class="btn primary sm" id="btnMcpRunScen">执行场景链路</button>
+            </div>
+          </div>
+          <div class="table-wrap" id="mcpScenTable">尚未生成场景链路。</div>
+          <pre class="mcp-out sm" id="mcpOutScen" hidden></pre>
+        </div>
+      </div>
+
+      <!-- 我的场景：平台自建场景（勾选用例后保存） -->
+      <div class="tab-panel" id="scenTab-list" hidden>
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <span class="fb-count" id="scenListMeta">按创建时间倒序排列</span>
+          </div>
+          <div class="toolbar-right">
+            <button class="btn ghost sm" id="btnRefreshScenarios">刷新</button>
+            <button class="btn primary sm" id="btnNewScenario">新建场景</button>
+          </div>
+        </div>
+        <div class="hint">按创建时间倒序排列，最新的场景在最上面。点击任意一行查看场景下的用例明细；表格底部分页，每页 10 条。</div>
+        <div class="table-wrap" id="scenarioTable"></div>
+      </div>
     </section>
 
     <!-- ---------------- 运行记录 ---------------- -->
@@ -284,66 +368,15 @@
       </div>
     </section>
 
-    <!-- ---------------- MCP 测试（契约驱动） ---------------- -->
+    <!-- ---------------- MCP 测试（契约驱动）：一键回归 / Schema Diff ---------------- -->
     <section class="page" id="page-mcp" hidden>
       <div class="page-head">
-        <h2 id="mcpTitle">契约发现</h2>
-        <span class="page-desc" id="mcpPageDesc">从 MCP Server tools/list 自动提取接口契约</span>
-      </div>
-
-      <!-- ① 契约发现 -->
-      <div class="users-panel" id="mcpPanel-contract">
-        <div class="card">
-          <div class="card-head">契约发现（第 1 步）<em>调 tools/list 导出 contract.json，与上次快照 diff</em></div>
-          <div class="toolbar">
-            <div class="toolbar-left">
-              <span class="fb-count" id="mcpGatewayText">网关：—</span>
-            </div>
-            <div class="toolbar-right">
-              <button class="btn primary sm" id="btnMcpDiscover">发现并导出契约</button>
-              <button class="btn ghost sm" id="btnMcpDiffQuick">仅查看 Diff</button>
-            </div>
-          </div>
-          <pre class="mcp-out" id="mcpOutContract">尚未执行契约发现。</pre>
-          <div class="card-head" style="margin-top:14px">发现的工具清单<em id="mcpToolCount"></em></div>
-          <div class="table-wrap" id="mcpToolTable">尚未发现契约。</div>
-        </div>
-      </div>
-
-      <!-- ② 参数级用例 -->
-      <div class="users-panel" id="mcpPanel-params" hidden>
-        <div class="card">
-          <div class="card-head">参数级用例生成（第 2/4a 步）<em>规则批量：缺必填 / 类型错误 / 只读正常路径 / 未知工具</em></div>
-          <div class="toolbar">
-            <div class="toolbar-left"><span class="fb-count" id="mcpParamsMeta">—</span></div>
-            <div class="toolbar-right">
-              <button class="btn primary sm" id="btnMcpGenParams">重新生成参数级用例</button>
-            </div>
-          </div>
-          <div class="mcp-stats" id="mcpParamsCats"></div>
-          <div class="table-wrap" id="mcpParamsTable">尚未生成参数级用例。</div>
-          <pre class="mcp-out sm" id="mcpOutParams" hidden></pre>
-        </div>
-      </div>
-
-      <!-- ③ 场景级用例 -->
-      <div class="users-panel" id="mcpPanel-scenarios" hidden>
-        <div class="card">
-          <div class="card-head">场景级链路（第 4b 步）<em>状态依赖：上一步输出提取为变量喂给下一步</em></div>
-          <div class="toolbar">
-            <div class="toolbar-left"><span class="fb-count" id="mcpScenMeta">—</span></div>
-            <div class="toolbar-right">
-              <button class="btn ghost sm" id="btnMcpGenScen">生成场景链路</button>
-              <button class="btn primary sm" id="btnMcpRunScen">执行场景链路</button>
-            </div>
-          </div>
-          <div class="table-wrap" id="mcpScenTable">尚未生成场景链路。</div>
-          <pre class="mcp-out sm" id="mcpOutScen" hidden></pre>
-        </div>
+        <h2 id="mcpTitle">一键回归</h2>
+        <span class="page-desc" id="mcpPageDesc">契约发现 → diff → 生成 → 全量执行（4a + 4b）</span>
       </div>
 
       <!-- ④ 一键回归 -->
-      <div class="users-panel" id="mcpPanel-run" hidden>
+      <div class="users-panel" id="mcpPanel-run">
         <div class="card">
           <div class="card-head">一键回归（第 5 步）<em>契约发现 → diff → 重新生成参数用例 → 全量执行（4a + 4b）</em></div>
           <div class="toolbar">
@@ -371,11 +404,18 @@
           <pre class="mcp-out sm" id="mcpOutDiff" hidden></pre>
         </div>
       </div>
+    </section>
 
-      <!-- ⑥ 详情视图：场景详情 / 回归报告（共用同一个面板，按需填充） -->
-      <div class="users-panel" id="mcpPanel-detail" hidden>
+    <!-- ---------------- 详情视图：场景详情 / 回归报告（共用，任一页面可进入） ---------------- -->
+    <section class="page" id="page-mcpdetail" hidden>
+      <div class="page-head">
+        <h2 id="mcpDetailTitle">详情</h2>
+        <div class="page-head-right">
+          <span class="page-desc" id="mcpDetailSub">—</span>
+        </div>
+      </div>
+      <div class="users-panel">
         <div class="card">
-          <div class="card-head"><span id="mcpDetailTitle">详情</span><em id="mcpDetailSub">—</em></div>
           <div class="toolbar">
             <div class="toolbar-left">
               <button class="btn ghost sm" id="btnMcpDetailBack">← 返回</button>

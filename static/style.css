@@ -1103,3 +1103,34 @@ html[data-theme="dark"] .mcp-method.m-post { border-color: #3b3f7a; }
 html[data-theme="dark"] .mcp-method.m-put { border-color: #5c4a24; }
 html[data-theme="dark"] .mcp-method.m-patch { color: #c0a6f0; background: #251d33; border-color: #463360; }
 html[data-theme="dark"] .mcp-method.m-delete { border-color: #6a2f33; }
+
+/* ================= 页内标签页（测试用例 / 测试场景） ================= */
+.tab-panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.tab-panel[hidden] { display: none !important; }
+.seg-tabs {
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--bg-sunken); border: 1px solid var(--border); border-radius: 9px;
+}
+.seg-tab {
+  border: none; background: none; color: var(--text-dim); font: inherit;
+  font-size: 12.5px; font-weight: 650; letter-spacing: .2px;
+  padding: 5px 12px; border-radius: 7px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  transition: all .13s ease;
+}
+.seg-tab:hover { color: var(--text); }
+.seg-tab.active {
+  background: var(--bg-soft); color: var(--accent); font-weight: 750;
+  box-shadow: 0 1px 2px rgba(20, 24, 40, .08);
+}
+.seg-tab em {
+  font-style: normal; font-family: var(--mono); font-size: 10.5px;
+  padding: 1px 6px; border-radius: 999px;
+  background: var(--bg-sunken); color: var(--text-faint);
+}
+.seg-tab.active em { background: var(--accent-soft); color: var(--accent); }
+html[data-theme="dark"] .seg-tab.active { box-shadow: none; }
+
+/* 详情视图（场景详情 / 回归报告）顶栏返回按钮 */
+#page-mcpdetail .page-head { align-items: flex-start; }
+#page-mcpdetail #mcpDetailSub { max-width: 780px; text-align: right; line-height: 1.6; }

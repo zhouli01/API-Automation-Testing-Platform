@@ -4,6 +4,7 @@
  * 校验分页条样式（左「共 N 项数据」+ 右 ‹ 1 2 3 … ›）、翻页、页码窗口折叠；⑤ Diff 不应有分页
  */
 const puppeteer = require('puppeteer-core');
+const { goto } = require('./nav');
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
 const readPager = (p, boxSel) => p.evaluate(sel => {
@@ -57,12 +58,12 @@ const clickNum = async (p, boxSel, label) => {
   await p.setViewport({ width: 1500, height: 1100 });
   await p.goto('http://127.0.0.1:8788/', { waitUntil: 'networkidle2' });
   await wait(900);
-  await p.click('#menuMcpRoot'); await wait(350);
 
   const out = {};
 
-  // ① 契约发现（101 工具 → 11 页）
-  await p.click('#mcpSubmenu .mcp-sub[data-msub="contract"]'); await wait(1500);
+  // ① 契约发现（一级菜单；101 工具 → 11 页）
+  out.navContract = await goto(p, 'contract');
+  await wait(1500);
   out.contract = await readPager(p, '#mcpToolTable');
   await clickNum(p, '#mcpToolTable', 6); await wait(400);
   out.contractP6 = await readPager(p, '#mcpToolTable');
@@ -74,16 +75,16 @@ const clickNum = async (p, boxSel, label) => {
   out.contractLast.rows = await p.evaluate(() =>
     document.querySelectorAll('#mcpToolTable tbody tr').length);
 
-  // ② 参数级用例（100 工具 → 10 页）
-  await p.click('#mcpSubmenu .mcp-sub[data-msub="params"]'); await wait(1200);
+  // ② 参数级用例（测试用例页标签；100 工具 → 10 页）
+  await goto(p, 'params'); await wait(1200);
   out.params = await readPager(p, '#mcpParamsTable');
   await clickNum(p, '#mcpParamsTable', 3); await wait(350);
   out.paramsP3 = await readPager(p, '#mcpParamsTable');
   out.paramsP3.firstNo = await p.evaluate(() =>
     document.querySelector('#mcpParamsTable tbody tr td').innerText.trim());
 
-  // ③ 场景级用例（3 链路 → 1 页）
-  await p.click('#mcpSubmenu .mcp-sub[data-msub="scenarios"]'); await wait(1200);
+  // ③ 场景级用例（测试场景页标签；3 链路 → 1 页）
+  await goto(p, 'scenarios'); await wait(1200);
   out.scenarios = await readPager(p, '#mcpScenTable');
   out.scenRows = await p.evaluate(() =>
     document.querySelectorAll('#mcpScenTable tbody tr').length);
@@ -97,7 +98,7 @@ const clickNum = async (p, boxSel, label) => {
   await p.click('#btnMcpDetailBack'); await wait(600);
 
   // ④ 一键回归记录（10 条）
-  await p.click('#mcpSubmenu .mcp-sub[data-msub="run"]'); await wait(1500);
+  await goto(p, 'run'); await wait(1500);
   out.run = await readPager(p, '#mcpRunTable');
 
   // ④-b 报告内明细分页（202 条 → 21 页）
@@ -121,7 +122,7 @@ const clickNum = async (p, boxSel, label) => {
 
   // ⑤ Diff 不应有分页
   await p.click('#btnMcpDetailBack'); await wait(600);
-  await p.click('#mcpSubmenu .mcp-sub[data-msub="diff"]'); await wait(1200);
+  await goto(p, 'diff'); await wait(1200);
   out.diffPager = await p.evaluate(() =>
     document.querySelectorAll('#mcpPanel-diff .mcp-pager, #mcpPanel-diff .pager').length);
 

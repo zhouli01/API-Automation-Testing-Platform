@@ -18,6 +18,9 @@ const state = {
   running: false,
   detailId: null,
   page: 'cases',
+  casesTab: 'params',        // 测试用例页标签：params（参数级用例）| list（用例列表）
+  scenTab: 'mcp',            // 测试场景页标签：mcp（场景级用例）| list（我的场景）
+  mcpSub: 'run',             // MCP 测试二级页：run（一键回归）| diff（Schema Diff）
   history: { batches: [], stats: {} },
   batchDetail: null,         // 抽屉当前展示的批次（供「导出本批次」使用）
   scenarios: [],
@@ -243,29 +246,66 @@ function bindPager() {
 function switchPage(name, sub) {
   state.page = name;
   $$('.menu-item').forEach(b => b.classList.toggle('active', b.dataset.page === name));
-  $$('.page').forEach(p => {
-    const on = p.id === 'page-' + name;
-    p.classList.toggle('active', on);
-    p.hidden = !on;            // 与 [hidden]{display:none!important} 保持同步
-  });
+  showOnlyPage(name);
   // 用例页每次进入都刷新：修复「启动时加载失败就一直空白，必须手动 F5」的问题，
   // 同时保证从外部新增/修改用例文件后切回来能立即看到最新数据
-  if (name === 'cases') loadCases();
-  if (name === 'scenarios') loadScenarios();
+  if (name === 'cases') {
+    setCasesTab(state.casesTab, true);
+  }
+  if (name === 'scenarios') {
+    setScenTab(state.scenTab, true);
+  }
   if (name === 'history') loadHistory();
   if (name === 'settings') renderSettings();
+  if (name === 'contract') {
+    loadMcpPanel('contract');
+  }
   if (name === 'users') {
     setUsersMenuOpen(true);
     setUsersPanel(sub || state.usersSub || 'profile');
   }
   if (name === 'mcp') {
     setMcpMenuOpen(true);
-    setMcpPanel(sub || state.mcpSub || 'contract');
+    setMcpPanel(sub || state.mcpSub || 'run');
   }
 }
 
-/* ---------- MCP 测试（契约驱动）：二级菜单与五个环节面板 ---------- */
-/* 子页面数据缓存：切换到对应子菜单时按需拉取，避免每次重建 DOM */
+/** 只显示指定页面（不动左侧菜单高亮）：详情视图需要「停留在原菜单」的效果 */
+function showOnlyPage(name) {
+  state.page = name;
+  $$('.page').forEach(p => {
+    const on = p.id === 'page-' + name;
+    p.classList.toggle('active', on);
+    p.hidden = !on;            // 与 [hidden]{display:none!important} 保持同步
+  });
+  const area = $('.page-area');
+  if (area) area.scrollTop = 0;
+}
+
+/* ---------- 测试用例：参数级用例 / 用例列表 两个标签页 ---------- */
+function setCasesTab(tab) {
+  const name = tab === 'list' ? 'list' : 'params';
+  state.casesTab = name;
+  $$('#caseTabs .seg-tab').forEach(b => b.classList.toggle('active', b.dataset.ctab === name));
+  if ($('#casesTab-params')) $('#casesTab-params').hidden = name !== 'params';
+  if ($('#casesTab-list')) $('#casesTab-list').hidden = name !== 'list';
+  if (name === 'params') loadMcpPanel('params');
+  else loadCases();
+}
+
+/* ---------- 测试场景：场景级用例 / 我的场景 两个标签页 ---------- */
+function setScenTab(tab) {
+  const name = tab === 'list' ? 'list' : 'mcp';
+  state.scenTab = name;
+  $$('#scenTabs .seg-tab').forEach(b => b.classList.toggle('active', b.dataset.stab === name));
+  if ($('#scenTab-mcp')) $('#scenTab-mcp').hidden = name !== 'mcp';
+  if ($('#scenTab-list')) $('#scenTab-list').hidden = name !== 'list';
+  if (name === 'mcp') loadMcpPanel('scenarios');
+  else loadScenarios();
+}
+
+/* ---------- MCP 测试（契约驱动）：二级菜单与面板 ---------- */
+/* 子页面数据缓存：切换到对应位置时按需拉取，避免每次重建 DOM */
 let _mcpTools = null;            // 契约工具清单
 let _mcpToolPage = 1;            // 工具清单当前页
 const MCP_TOOL_PAGE_SIZE = 10;   // 工具清单每页条数
@@ -280,7 +320,7 @@ const MCP_SCEN_CASE_PAGE_SIZE = 10;
 let _mcpDiffData = null;         // 最近一次 diff 结果
 let _mcpRunPage = 1;             // 运行记录当前页
 const MCP_RUN_PAGE_SIZE = 10;    // 运行记录每页条数
-let _mcpDetailFrom = 'scenarios';// 详情视图返回时回到哪个子菜单
+let _detailFrom = { page: 'scenarios', sub: 'mcp' };  // 详情视图返回位置
 let _mcpReport = null;           // 回归报告 {data, filter, page, failPage}
 const MCP_REPORT_PAGE_SIZE = 10; // 报告内用例明细每页条数
 const MCP_REPORT_FAIL_PAGE_SIZE = 10; // 报告内失败明细每页条数
@@ -291,55 +331,54 @@ function setMcpMenuOpen(open) {
   if ($('#menuGroupMcp')) $('#menuGroupMcp').classList.toggle('open', open);
 }
 
+/* MCP 测试下只剩两个二级子页（契约发现已提为一级菜单，参数级/场景级分别并入
+   测试用例、测试场景页面的标签页） */
 const MCP_PANELS = {
-  contract: ['契约发现', '从 MCP Server tools/list 自动提取接口契约'],
-  params: ['参数级用例', '按 JSON Schema 规则批量生成 4a 参数级用例'],
-  scenarios: ['场景级用例', '4b 状态依赖链路：上一步输出喂给下一步'],
   run: ['一键回归', '契约发现 → diff → 生成 → 全量执行（4a + 4b）'],
   diff: ['Schema Diff', '对比 tools/list 与上次快照，接口变更自动告警'],
 };
 
 function setMcpPanel(sub) {
-  const name = MCP_PANELS[sub] ? sub : 'contract';
+  const name = MCP_PANELS[sub] ? sub : 'run';
   state.mcpSub = name;
   $$('#mcpSubmenu .mcp-sub').forEach(b => b.classList.toggle('active', b.dataset.msub === name));
   Object.keys(MCP_PANELS).forEach(k => {
     const el = $('#mcpPanel-' + k);
     if (el) el.hidden = k !== name;
   });
-  if ($('#mcpPanel-detail')) $('#mcpPanel-detail').hidden = true;  // 详情是覆盖视图
   if ($('#mcpTitle')) $('#mcpTitle').textContent = MCP_PANELS[name][0];
   if ($('#mcpPageDesc')) $('#mcpPageDesc').textContent = MCP_PANELS[name][1];
   loadMcpPanel(name);
 }
 
-/* ---------- 详情视图（场景详情 / 回归报告共用） ---------- */
+/* ---------- 详情视图（场景详情 / 回归报告共用，可从任意页面进入） ---------- */
 function openMcpDetail(opts) {
-  _mcpDetailFrom = opts.from || state.mcpSub || 'scenarios';
-  Object.keys(MCP_PANELS).forEach(k => {
-    const el = $('#mcpPanel-' + k);
-    if (el) el.hidden = true;
-  });
-  const detail = $('#mcpPanel-detail');
-  if (!detail) return;
-  detail.hidden = false;
+  _detailFrom = opts.from || { page: state.page || 'scenarios', sub: state.scenTab || 'mcp' };
+  showOnlyPage('mcpdetail');
   if ($('#mcpDetailTitle')) $('#mcpDetailTitle').textContent = opts.title || '详情';
   if ($('#mcpDetailSub')) $('#mcpDetailSub').textContent = opts.sub || '';
   if ($('#mcpDetailActions')) $('#mcpDetailActions').innerHTML = opts.actions || '';
   if ($('#mcpDetailBody')) $('#mcpDetailBody').innerHTML = opts.body || '';
-  if ($('#mcpTitle')) $('#mcpTitle').textContent = opts.title || '详情';
-  if ($('#mcpPageDesc')) $('#mcpPageDesc').textContent = opts.pageDesc || '';
 }
 
 function closeMcpDetail() {
-  const detail = $('#mcpPanel-detail');
-  if (detail) detail.hidden = true;
   _mcpReport = null;
   _mcpScenCases = null;
-  setMcpPanel(_mcpDetailFrom || 'scenarios');
+  const from = _detailFrom || { page: 'scenarios', sub: 'mcp' };
+  if (from.page === 'scenarios') {
+    state.scenTab = from.sub === 'list' ? 'list' : 'mcp';
+    switchPage('scenarios');
+    return;
+  }
+  if (from.page === 'cases') {
+    state.casesTab = from.sub === 'list' ? 'list' : 'params';
+    switchPage('cases');
+    return;
+  }
+  switchPage('mcp', from.sub || 'run');
 }
 
-/* 切到哪个子页面就加载哪个子页面的数据（以前只有契约页会加载，其余 4 页是空白占位） */
+/* 切到哪个子页面就加载哪个子页面的数据 */
 function loadMcpPanel(name) {
   if (name === 'contract') { loadMcpStatus(); loadMcpTools(); return; }
   if (name === 'params') { loadMcpSummary().then(s => s && renderMcpParams(s.params)); return; }
@@ -492,10 +531,12 @@ function renderMcpParams(sum) {
   if (!box) return;
   if (!sum || !sum.exists || !sum.total) {
     if ($('#mcpParamsMeta')) $('#mcpParamsMeta').textContent = '尚未生成参数级用例';
+    if ($('#tabCaseParamCount')) $('#tabCaseParamCount').textContent = '0';
     if ($('#mcpParamsCats')) $('#mcpParamsCats').innerHTML = '';
     box.textContent = '尚未生成参数级用例，点击右上角「重新生成参数级用例」。';
     return;
   }
+  if ($('#tabCaseParamCount')) $('#tabCaseParamCount').textContent = sum.total;
   if ($('#mcpParamsMeta')) $('#mcpParamsMeta').textContent =
     `共 ${sum.total} 条 ｜ ${sum.tools.length} 个工具 ｜ 生成于 ${sum.mtime} ｜ ${sum.file}`;
   if ($('#mcpParamsCats')) {
@@ -530,9 +571,11 @@ function renderMcpScen(sum) {
   if (!box) return;
   if (!sum || !sum.exists || !sum.chains.length) {
     if ($('#mcpScenMeta')) $('#mcpScenMeta').textContent = '尚未生成场景链路';
+    if ($('#tabScenMchCount')) $('#tabScenMchCount').textContent = '0';
     box.textContent = '尚未生成场景链路，点击右上角「生成场景链路」。';
     return;
   }
+  if ($('#tabScenMchCount')) $('#tabScenMchCount').textContent = sum.chains.length + ' 链 / ' + sum.stepCount + ' 步';
   if ($('#mcpScenMeta')) $('#mcpScenMeta').textContent =
     `共 ${sum.chains.length} 条链路 / ${sum.stepCount} 个步骤 ｜ 生成于 ${sum.mtime} ｜ ${sum.file}`;
   const total = sum.chains.length;
@@ -573,10 +616,9 @@ function shortText(s, n) {
 async function openMcpScenDetail(index) {
   _mcpScenCasePage = 1;
   openMcpDetail({
-    from: 'scenarios',
+    from: { page: 'scenarios', sub: 'mcp' },
     title: '场景详情',
     sub: '正在加载该场景下的测试用例…',
-    pageDesc: '该场景链路包含的全部可执行测试用例',
     body: '<div class="empty-hint">正在加载…</div>',
   });
   try {
@@ -608,7 +650,6 @@ function renderMcpScenDetail(d) {
   if ($('#mcpDetailTitle')) $('#mcpDetailTitle').textContent = sc.name || '场景详情';
   if ($('#mcpDetailSub')) $('#mcpDetailSub').textContent =
     (sc.desc ? sc.desc + ' ｜ ' : '') + `共 ${cases.length} 条用例 / ${tools.length} 个工具`;
-  if ($('#mcpPageDesc')) $('#mcpPageDesc').textContent = '该场景链路包含的全部可执行测试用例';
   if ($('#mcpDetailActions')) $('#mcpDetailActions').innerHTML =
     '<button class="btn ghost sm" id="btnMcpScenExport">导出用例 JSON</button>';
   const body = $('#mcpDetailBody');
@@ -723,10 +764,9 @@ async function loadMcpRuns(page) {
 
 async function openMcpReport(batchId) {
   openMcpDetail({
-    from: 'run',
+    from: { page: 'mcp', sub: 'run' },
     title: '回归测试报告',
     sub: '正在生成报告…',
-    pageDesc: '本次回归执行的完整结果：概览 / 失败明细 / 用例执行明细',
     body: '<div class="empty-hint">正在加载运行结果…</div>',
   });
   try {
@@ -1410,6 +1450,7 @@ function updateStats() {
   $('#stPass').textContent = pass;
   $('#stFail').textContent = fail;
   $('#stTime').textContent = ms;
+  if ($('#tabCaseListCount')) $('#tabCaseListCount').textContent = total;
   const btn = $('#btnRun');
   btn.disabled = state.running || state.selected.size === 0;
   btn.textContent = state.running ? '执行中…' : `执行选中 (${state.selected.size})`;
@@ -1514,8 +1555,12 @@ async function loadScenarios() {
 
 function renderScenarios() {
   const box = $('#scenarioTable');
+  if (!box) return;
   // 与运行记录页一致：按创建时间倒序，最新在最上面
   state.scenarios.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  if ($('#tabScenListCount')) $('#tabScenListCount').textContent = state.scenarios.length;
+  if ($('#scenListMeta')) $('#scenListMeta').textContent =
+    state.scenarios.length ? `共 ${state.scenarios.length} 个自建场景` : '暂无自建场景';
 
   if (!state.scenarios.length) {
     box.innerHTML = `<div class="empty-state"><div class="empty-icon">☰</div>
@@ -2556,7 +2601,7 @@ function bindEvents() {
       switchPage('users', state.usersSub || 'profile');
     } else if (b.dataset.page === 'mcp') {
       setMcpMenuOpen(true);
-      switchPage('mcp', state.mcpSub || 'contract');
+      switchPage('mcp', state.mcpSub || 'run');
     } else {
       switchPage(b.dataset.page);
     }
@@ -2569,6 +2614,15 @@ function bindEvents() {
   // MCP 二级菜单
   $$('#mcpSubmenu .mcp-sub').forEach(b => b.addEventListener('click', () => {
     switchPage('mcp', b.dataset.msub);
+  }));
+  // 测试用例 / 测试场景：页内标签（参数级用例 ↔ 用例列表、场景级用例 ↔ 我的场景）
+  $$('#caseTabs .seg-tab').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.ctab === state.casesTab) return;
+    setCasesTab(b.dataset.ctab);
+  }));
+  $$('#scenTabs .seg-tab').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.stab === state.scenTab) return;
+    setScenTab(b.dataset.stab);
   }));
 
   // 顶栏
@@ -3084,7 +3138,17 @@ async function doLogout() {
   if (!(await loadMe())) return;
   bindEvents();
   bindPager();
-  loadCases();
+  switchPage(state.page || 'cases');   // 默认页：测试用例（参数级用例标签）
+  loadCases();                         // 预取「用例列表」数据与数量
   loadHistory(true);
-  loadScenarios();
+  loadScenarios();                     // 预取「我的场景」数量
+  // 预取 MCP 用例规模，先把两个标签上的数量填上（表格数据等切到对应标签再渲染）
+  loadMcpSummary().then(s => {
+    if (!s) return;
+    const pc = s.params || {}, sc = s.scenarios || {};
+    if ($('#tabCaseParamCount')) $('#tabCaseParamCount').textContent = pc.total || 0;
+    if ($('#tabScenMchCount')) $('#tabScenMchCount').textContent =
+      (sc.exists && sc.chains && sc.chains.length)
+        ? sc.chains.length + ' 链 / ' + sc.stepCount + ' 步' : '0';
+  });
 })();
