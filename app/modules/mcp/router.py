@@ -17,6 +17,7 @@ from ...deps import ApiError, require_user
 from ...modules.cases.parser import build_payload, invalidate_cache
 from . import contract as contract_mod
 from . import generator, scenarios_runner
+from .modules import DEFAULT_MODULES, label_of, module_of, resolve, stats as module_stats
 
 router = APIRouter(prefix='/api/mcp', tags=['MCP 测试'])
 
@@ -37,7 +38,9 @@ def status(_user: dict = Depends(require_user)):
         'toolPrefix': MCP_TOOL_PREFIX,
         'gatewayReachable': _ping(),
         'contract': dict(_info(MCP_CONTRACT_FILE),
-                         toolCount=(contract or {}).get('armoryToolCount') or 0),
+                         toolCount=(contract or {}).get('selectedToolCount')
+                         or (contract or {}).get('armoryToolCount') or 0,
+                         modules=(contract or {}).get('modules') or []),
         'paramCases': _info(MCP_PARAM_CASES_FILE),
         'scenarioCases': _info(MCP_SCENARIO_FILE),
     }
@@ -79,18 +82,54 @@ def _split_api(desc):
     return method, path, clean
 
 
-@router.get('/tools', summary='契约发现的工具清单（完整工具名 / 接口名称 / 描述 / 必填参数）')
-def list_tools(_user: dict = Depends(require_user)):
+_MOD_CACHE = {'time': 0.0, 'stats': None}
+
+
+def _live_module_stats():
+    """直接从网关统计全量工具的模块分布（60 秒缓存，避免每次进页面都拉 300+ 工具）。"""
+    now = time.time()
+    if _MOD_CACHE['stats'] and now - _MOD_CACHE['time'] < 60:
+        return _MOD_CACHE['stats']
+    try:
+        st = module_stats(mcp_client.tools_list())
+    except Exception:  # noqa: BLE001
+        return _MOD_CACHE['stats'] or module_stats([])
+    _MOD_CACHE.update(time=now, stats=st)
+    return st
+
+
+@router.get('/modules', summary='契约发现的功能模块目录（云枢菜单模块 + 各模块工具数）')
+def list_modules(_user: dict = Depends(require_user)):
+    """模块选择器数据源：优先用上次发现时记下的全量分布，缺失时才实时统计。"""
+    contract = contract_mod.load_contract() or {}
+    stats = contract.get('moduleStats') or _live_module_stats()
+    return {'ok': True, 'gateway': MCP_GATEWAY_URL,
+            'generatedAt': contract.get('generatedAt') or '',
+            'modules': stats,
+            'selected': contract.get('modules') or list(DEFAULT_MODULES),
+            'total': sum(int(m.get('count') or 0) for m in stats)}
+
+
+@router.get('/tools', summary='契约发现的工具清单（完整工具名 / 接口名称 / 模块 / 描述 / 必填参数）')
+def list_tools(module: str = '', _user: dict = Depends(require_user)):
+    """module 可选，逗号分隔多个模块 key（如 armory,project）；不传则返回契约内全部工具。"""
     contract = contract_mod.load_contract()
     if not contract:
         raise ApiError(400, '尚未进行契约发现，请先在「契约发现」页执行')
+    keys = resolve(module) if module else None
+    src = contract.get('tools') or []
+    if keys:
+        src = [t for t in src if module_of(t.get('name')) in keys]
     tools = []
-    for t in contract.get('tools') or []:
+    for t in src:
         method, path, clean = _split_api(t.get('description'))
         schema = t.get('inputSchema') or {}
         props = schema.get('properties') or {}
+        mod = module_of(t.get('name'))
         tools.append({
-            'name': t['name'],                       # 完整 MCP tool 名（含 armory_ 前缀）
+            'name': t['name'],                       # 完整 MCP tool 名（含模块前缀）
+            'module': mod,
+            'moduleLabel': label_of(mod),
             'apiMethod': method,
             'apiPath': path,
             'apiName': (method + ' ' + path).strip(),
@@ -103,7 +142,10 @@ def list_tools(_user: dict = Depends(require_user)):
         })
     return {'ok': True, 'generatedAt': contract.get('generatedAt'),
             'gateway': MCP_GATEWAY_URL,
-            'total': contract.get('armoryToolCount') or len(tools),
+            'total': len(tools),
+            'gatewayToolCount': contract.get('toolCount') or len(tools),
+            'modules': contract.get('modules') or [],
+            'moduleStats': contract.get('moduleStats') or [],
             'withApi': sum(1 for t in tools if t['apiPath']),
             'tools': tools}
 
@@ -300,16 +342,24 @@ def run_report(batchId: str = '', _user: dict = Depends(require_user)):
     return {'ok': True, 'summary': summary, 'results': results}
 
 
-@router.post('/discover', summary='第 1 步 · 契约发现：tools/list 导出 contract.json 并 diff')
-def discover(_user: dict = Depends(require_user)):
+@router.post('/discover', summary='第 1 步 · 契约发现：按选中模块 tools/list 导出 contract.json 并 diff')
+def discover(payload: Dict[str, Any] = Body(default_factory=dict),
+             _user: dict = Depends(require_user)):
+    """body.modules 支持多选（如 ['armory','project']）；不传则沿用上次选中的模块。"""
+    modules = payload.get('modules')
     try:
-        contract, diff = contract_mod.discover()
+        contract, diff = contract_mod.discover(modules)
     except Exception as e:  # noqa: BLE001
         raise ApiError(502, f'MCP 网关不可达：{type(e).__name__}: {e}')
+    _MOD_CACHE.update(time=time.time(), stats=contract.get('moduleStats'))
     invalidate_cache()
     return {'ok': True, 'gateway': MCP_GATEWAY_URL,
-            'toolCount': contract['toolCount'],
-            'armoryToolCount': contract['armoryToolCount'],
+            'toolCount': contract['selectedToolCount'],     # 本次发现写入契约的工具数
+            'gatewayToolCount': contract['toolCount'],      # 网关全量工具数
+            'armoryToolCount': contract['selectedToolCount'],   # 兼容旧字段
+            'modules': contract['modules'],
+            'selectedStats': contract['selectedStats'],
+            'moduleStats': contract['moduleStats'],
             'diff': diff}
 
 
@@ -342,17 +392,23 @@ def run_scenarios(payload: Dict[str, Any] = Body(default_factory=dict),
 
 
 @router.post('/diff', summary='第 6 步 · Schema diff：与上次基线快照对比（发现即告警）')
-def schema_diff(_user: dict = Depends(require_user)):
+def schema_diff(payload: Dict[str, Any] = Body(default_factory=dict),
+                _user: dict = Depends(require_user)):
+    modules = payload.get('modules')
     try:
         tools = mcp_client.tools_list()
     except Exception as e:  # noqa: BLE001
         raise ApiError(502, f'MCP 网关不可达：{type(e).__name__}: {e}')
-    current = contract_mod._contract(tools)
+    if not modules:  # 未指定 → 沿用上次发现的模块范围
+        modules = (contract_mod.load_contract() or {}).get('modules') or None
+    current = contract_mod._contract(tools, modules)
     # 基线 = 上次「契约发现」时的快照（data/mcp_contract_snapshot.json），
     # 不用 contract.json——它在每次发现/回归后都会刷新为最新，会导致 diff 恒为空
     baseline = contract_mod.load_baseline()
-    diff = contract_mod.diff_contracts(baseline, current)
-    return {'ok': True, 'currentCount': current['armoryToolCount'],
+    diff = contract_mod.diff_contracts(baseline, current, current['modules'])
+    return {'ok': True, 'currentCount': current['selectedToolCount'],
+            'modules': current['modules'],
+            'selectedStats': current['selectedStats'],
             'baselineTime': (baseline or {}).get('generatedAt') or
                             (baseline or {}).get('time') or '', 'diff': diff}
 
@@ -361,12 +417,14 @@ def schema_diff(_user: dict = Depends(require_user)):
 def regression(payload: Dict[str, Any] = Body(default_factory=dict),
                _user: dict = Depends(require_user)):
     out = {'steps': {}}
-    # 1. 契约发现 + diff
+    # 1. 契约发现 + diff（沿用 payload.modules，否则沿用上次选中的模块）
     try:
-        contract, diff = contract_mod.discover()
+        contract, diff = contract_mod.discover(payload.get('modules'))
     except Exception as e:  # noqa: BLE001
         raise ApiError(502, f'MCP 网关不可达：{type(e).__name__}: {e}')
-    out['steps']['discover'] = {'toolCount': contract['armoryToolCount'], 'diff': diff}
+    _MOD_CACHE.update(time=time.time(), stats=contract.get('moduleStats'))
+    out['steps']['discover'] = {'toolCount': contract['selectedToolCount'],
+                                'modules': contract['modules'], 'diff': diff}
     invalidate_cache()
     # 2/4a. 重新生成参数级用例（保证与最新契约一致）
     gen = generator.generate_param_cases()

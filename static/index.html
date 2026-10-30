@@ -103,13 +103,30 @@
       <div class="page-head">
         <h2>契约发现</h2>
         <div class="page-head-right">
-          <span class="page-desc">从 MCP Server tools/list 自动提取接口契约，导出 contract.json 并与上次快照对比</span>
+          <span class="page-desc">按云枢功能模块（可多选）从 MCP Server tools/list 提取接口契约，导出 contract.json 并与上次快照对比</span>
         </div>
       </div>
 
       <div class="users-panel" id="mcpPanel-contract">
         <div class="card">
-          <div class="card-head">契约发现（第 1 步）<em>调 tools/list 导出 contract.json，与上次快照 diff</em></div>
+          <div class="card-head">契约发现（第 1 步）<em>选云枢功能模块 → tools/list 导出 contract.json → 与上次快照 diff</em></div>
+
+          <!-- 功能模块选择：对应云枢各菜单模块，可单选或多选 -->
+          <div class="mod-picker">
+            <div class="mod-picker-head">
+              <b>功能模块</b>
+              <span class="mod-picker-hint">按云枢菜单模块分别发现；可多选，多选时合并导出为一份契约</span>
+              <span class="mod-picker-sum" id="mcpModSum">—</span>
+              <div class="mod-picker-ops">
+                <button class="btn ghost sm" id="mcpModAll">全选</button>
+                <button class="btn ghost sm" id="mcpModDefault">仅制品库</button>
+              </div>
+            </div>
+            <div class="chips mod-chips" id="mcpModules">
+              <span class="mcp-none">模块加载中…</span>
+            </div>
+          </div>
+
           <div class="toolbar">
             <div class="toolbar-left">
               <span class="fb-count" id="mcpGatewayText">网关：—</span>

@@ -6,6 +6,7 @@ import time
 
 from ...config import (MCP_DIR, MCP_PARAM_CASES_FILE, MCP_SCENARIO_FILE)
 from .contract import load_contract
+from .modules import module_of
 
 MCP_URL_AUTH = None  # 延迟从 config 取，避免循环导入
 
@@ -76,6 +77,7 @@ def generate_param_cases():
     cases = []
     for t in contract['tools']:
         tool = t['name']
+        mod = module_of(tool)
         schema = t.get('inputSchema') or {}
         props = schema.get('properties') or {}
         required = schema.get('required') or []
@@ -83,12 +85,12 @@ def generate_param_cases():
         if not required:
             if tool in READ_NOARG:
                 cases.append(_param_case(url, auth, f'{tool} 正常路径', tool, {}, A_OK,
-                                         '无必填参数只读工具，正常调用'))
+                                         '无必填参数只读工具，正常调用', mod))
             continue
         dropped = required[0]
         cases.append(_param_case(url, auth, f'{tool} 缺必填[{dropped}]', tool,
                                  {k: v for k, v in args.items() if k != dropped},
-                                 A_IS_ERR + A_TEXT_ERR, f'删除必填字段 {dropped}'))
+                                 A_IS_ERR + A_TEXT_ERR, f'删除必填字段 {dropped}', mod))
         first_str = next((k for k in required
                           if (props.get(k) or {}).get('type') == 'string'), None)
         if first_str:
@@ -96,16 +98,16 @@ def generate_param_cases():
             bad[first_str] = 123
             cases.append(_param_case(url, auth, f'{tool} 类型错误[{first_str}]', tool,
                                      bad, A_IS_ERR + A_TEXT_ERR,
-                                     f'string 字段 {first_str} 传数字'))
+                                     f'string 字段 {first_str} 传数字', mod))
         if tool in READ_NOARG:
             cases.append(_param_case(url, auth, f'{tool} 正常路径', tool, {}, A_OK,
-                                     '只读工具正常调用'))
+                                     '只读工具正常调用', mod))
         elif tool in READ_WITH_PKG:
             ok_args = dict(READ_WITH_PKG[tool])
             for k in required:
                 ok_args.setdefault(k, sample_value(k, props.get(k)))
             cases.append(_param_case(url, auth, f'{tool} 正常路径', tool, ok_args, A_OK,
-                                     '真实样本参数正常调用'))
+                                     '真实样本参数正常调用', mod))
     cases.append(_param_case(url, auth, '未知工具', 'armory_no_such_tool', {},
                              [{'type': 'json', 'path': 'error.code', 'op': 'eq',
                                'value': -32601, 'desc': 'JSON-RPC error.code=-32601'}],
@@ -118,8 +120,9 @@ def generate_param_cases():
     return {'file': os.path.basename(MCP_PARAM_CASES_FILE), 'total': len(cases)}
 
 
-def _param_case(url, auth, name, tool, args, asserts, desc):
-    return {'name': name, 'user': 'MCP', 'module': 'mcp-armory',
+def _param_case(url, auth, name, tool, args, asserts, desc, mod='armory'):
+    """mod：工具所属模块（armory / project / code …），用于用例列表按模块归类。"""
+    return {'name': name, 'user': 'MCP', 'module': 'mcp-' + (mod or 'armory'),
             'apiName': f'tools/call {tool}', 'apiPath': tool,
             'method': 'POST', 'url': url,
             'headers': {'Authorization': auth, 'Content-Type': 'application/json'},

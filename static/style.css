@@ -922,6 +922,46 @@ table.dt.dt-hs .row-actions .btn.sm { padding: 6px 12px; font-size: 12.5px; font
 .uact button:disabled:hover { border-color: var(--border); color: var(--text-dim); background: var(--bg-soft); }
 
 /* ---- MCP 测试（契约驱动）输出面板 ---- */
+/* 契约发现：云枢功能模块选择器（多选 chips，选中即纳入本次发现范围） */
+.mod-picker {
+  margin: 12px 13px 0; padding: 10px 12px 11px;
+  background: var(--bg-soft); border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.mod-picker-head {
+  display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap;
+  margin-bottom: 9px;
+}
+.mod-picker-head b { font-size: 12.5px; font-weight: 650; }
+.mod-picker-hint { font-size: 11px; color: var(--text-faint); }
+.mod-picker-sum {
+  font-family: var(--mono); font-size: 11.5px; color: var(--text-dim);
+  padding: 1px 8px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent);
+}
+.mod-picker-ops { margin-left: auto; display: flex; gap: 6px; }
+.mod-chips { gap: 7px; }
+.mod-chips .chip { padding: 4px 12px; font-size: 12px; }
+.mod-chips .chip .cnt { font-family: var(--mono); }
+.mod-chips .chip.on .cnt { opacity: .85; }
+.mod-chips .chip.dim { cursor: not-allowed; }
+.mod-chips .chip.dim:hover { border-color: var(--border); color: var(--text-dim); }
+
+/* 工具清单「模块」列标签：弱化底色，让工具名/接口名称仍是视觉主体 */
+.mod-tag {
+  display: inline-block; padding: 1px 7px; border-radius: 5px;
+  font-size: 11.5px; line-height: 1.5; white-space: nowrap;
+  background: var(--bg-soft); border: 1px solid var(--border); color: var(--text-dim);
+}
+
+/* 多模块合并发现时，工具清单里的模块分组小标题 */
+.dt-tools tr.mod-group td {
+  background: var(--bg-soft); padding-top: 6px; padding-bottom: 6px;
+}
+.dt-tools tr.mod-group em {
+  margin-left: 8px; font-style: normal; font-size: 11px; color: var(--text-faint);
+}
+
 .mcp-out {
   font-family: var(--mono);
   font-size: 12px; line-height: 1.65;

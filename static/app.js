@@ -307,6 +307,7 @@ function setScenTab(tab) {
 /* ---------- MCP 测试（契约驱动）：二级菜单与面板 ---------- */
 /* 子页面数据缓存：切换到对应位置时按需拉取，避免每次重建 DOM */
 let _mcpTools = null;            // 契约工具清单
+let _mcpToolsInfo = null;        // 契约工具接口的原始返回（工具数/时间/标注数），供摘要文案复用
 let _mcpToolPage = 1;            // 工具清单当前页
 const MCP_TOOL_PAGE_SIZE = 10;   // 工具清单每页条数
 let _mcpParamSum = null;         // 参数级用例概览
@@ -326,6 +327,9 @@ const MCP_REPORT_PAGE_SIZE = 10; // 报告内用例明细每页条数
 const MCP_REPORT_FAIL_PAGE_SIZE = 10; // 报告内失败明细每页条数
 let _mcpScenCases = null;        // 当前场景详情用例（展开行用）
 let _toolApiMap = null;          // MCP 工具名 → 契约接口（apiMethod / apiPath / description）
+let _mcpModules = null;          // 云枢功能模块目录 [{key,label,count,sample}]
+let _mcpModSel = null;           // 当前选中的模块 key 集合（Set）；null = 尚未初始化
+let _mcpModTotal = 0;            // 网关全量工具数（所有模块合计）
 
 function setMcpMenuOpen(open) {
   if ($('#mcpSubmenu')) $('#mcpSubmenu').hidden = !open;
@@ -381,7 +385,8 @@ function closeMcpDetail() {
 
 /* 切到哪个子页面就加载哪个子页面的数据 */
 function loadMcpPanel(name) {
-  if (name === 'contract') { loadMcpStatus(); loadMcpTools(); return; }
+  // 契约发现：先拉模块目录（决定 chips 与「已选 N 个模块」），再拉已导出契约的工具清单
+  if (name === 'contract') { loadMcpModules(); loadMcpStatus(); loadMcpTools(); return; }
   if (name === 'params') {
     ensureToolIface().then(() => loadMcpSummary()).then(s => s && renderMcpParams(s.params));
     return;
@@ -473,18 +478,120 @@ async function loadMcpTools() {
   const box = $('#mcpToolTable');
   if (!box) return;
   try {
+    // 始终取契约全量工具：_toolApiMap（工具→接口名称）需要覆盖所有模块，
+    // 否则切到某个模块后其它页面的「接口名称」列会退化显示工具名。
+    // 展示层再按选中模块前端过滤，切换模块无需重新请求。
     const d = await api('/api/mcp/tools');
     _mcpTools = d.tools || [];
+    _mcpToolsInfo = d;
     _toolApiMap = {};                                   // 顺带更新「工具 → 接口」映射
     _mcpTools.forEach(t => { if (t && t.name) _toolApiMap[t.name] = t; });
-    if ($('#mcpToolCount')) $('#mcpToolCount').textContent =
-      `共 ${d.total} 个工具（发现于 ${d.generatedAt}）｜接口名称已标注 ${d.withApi != null ? d.withApi : (d.tools || []).filter(t => t.apiPath).length} 个`;
+    updateMcpToolMeta();
     renderMcpToolPage(1);
   } catch (e) {
     _mcpTools = null;
+    _mcpToolsInfo = null;
     box.textContent = e.message.includes('尚未') ? '尚未发现契约，请先点击上方「发现并导出契约」。' : '加载失败：' + e.message;
     if ($('#mcpToolCount')) $('#mcpToolCount').textContent = '';
   }
+}
+
+/** 工具清单上方的一行摘要：契约覆盖的模块 / 接口名称标注数 / 选中但未纳入契约的模块 */
+function updateMcpToolMeta() {
+  const el = $('#mcpToolCount');
+  if (!el) return;
+  const d = _mcpToolsInfo;
+  if (!d || !_mcpTools) { el.textContent = ''; return; }
+  const covered = [...new Set(_mcpTools.map(t => t.module || 'other'))];
+  // 模块目录未加载时 moduleLabel 只能回退成 key：此时等 loadMcpModules 回来再刷一次
+  const view = pickedModules();
+  const miss = view.filter(k => !covered.includes(k));
+  // 选中范围比契约覆盖范围窄时，先报「当前视图」，避免「契约 124 / 表里只有 101 行」看起来自相矛盾
+  const sig = a => a.slice().sort().join(',');
+  const narrower = view.length > 0 && sig(view) !== sig(covered);
+  el.textContent =
+    (narrower ? `当前视图 ${mcpToolsInScope().length} 个工具（模块：${view.map(m => moduleLabel(m)).join('、')}）｜` : '') +
+    `契约共 ${d.total} 个工具` +
+    (covered.length ? `（模块：${covered.map(m => moduleLabel(m)).join('、')}）` : '') +
+    `（发现于 ${d.generatedAt}）｜接口名称已标注 ${d.withApi != null ? d.withApi : _mcpTools.filter(t => t.apiPath).length} 个` +
+    (miss.length ? ` ｜ 未纳入契约：${miss.map(m => moduleLabel(m)).join('、')}（请点「发现并导出契约」）` : '');
+}
+
+/* ---------- 云枢功能模块选择（契约发现的发现范围） ---------- */
+function moduleLabel(key) {
+  const m = (_mcpModules || []).find(x => x.key === key);
+  return m ? m.label : (key || '');
+}
+
+function moduleCount(key) {
+  const m = (_mcpModules || []).find(x => x.key === key);
+  return m ? m.count : 0;
+}
+
+/** 拉模块目录（各模块工具数 / 上次已选的模块），并初始化选中集合 */
+async function loadMcpModules() {
+  const box = $('#mcpModules');
+  try {
+    const d = await api('/api/mcp/modules');
+    _mcpModules = d.modules || [];
+    _mcpModTotal = d.total || 0;
+    if (!_mcpModSel) {
+      const init = (d.selected || []).filter(k => moduleCount(k) > 0);
+      _mcpModSel = new Set(init.length ? init : _mcpModules.filter(m => m.count).slice(0, 1).map(m => m.key));
+    }
+    renderMcpModules();
+    updateMcpToolMeta();                   // 模块目录到位后，摘要里的模块名才能显示中文标签
+    if (_mcpTools) renderMcpToolPage(1);   // 首次进入时工具清单可能已先返回，补一次按模块过滤的渲染
+  } catch (e) {
+    if (box) box.innerHTML = '<span class="mcp-none">模块加载失败：' + esc(e.message) + '</span>';
+  }
+}
+
+/** 渲染模块 chips：选中态高亮；计数 = 该模块在网关上的工具数；空模块置灰 */
+function renderMcpModules() {
+  const box = $('#mcpModules');
+  if (!box || !_mcpModules) return;
+  const sel = _mcpModSel || new Set();
+  const picked = _mcpModules.filter(m => sel.has(m.key));
+  const pickedTools = picked.reduce((a, m) => a + m.count, 0);
+  box.innerHTML = _mcpModules.map(m => {
+    const on = sel.has(m.key);
+    const dim = !m.count;         // 空模块：置灰且不可点
+    return '<button class="chip' + (on ? ' on' : '') + (dim ? ' dim' : '') + '"' +
+      ' data-mod="' + esc(m.key) + '"' + (dim ? ' disabled' : '') +
+      ' title="' + esc(dim ? `${m.label}：该模块当前无工具`
+        : `${m.label}：${m.count} 个工具${m.sample ? '，如 ' + m.sample : ''}`) + '">' +
+      esc(m.label) + '<span class="cnt">' + m.count + '</span></button>';
+  }).join('');
+  if ($('#mcpModSum')) $('#mcpModSum').textContent =
+    `已选 ${picked.length} 个模块 ｜ ${pickedTools} / ${_mcpModTotal} 个工具`;
+  box.querySelectorAll('.chip[data-mod]').forEach(b => {
+    if (b.disabled) return;
+    b.addEventListener('click', () => {
+      const k = b.dataset.mod;
+      if (!_mcpModSel) _mcpModSel = new Set();
+      if (_mcpModSel.has(k)) {
+        if (_mcpModSel.size <= 1) { toast('至少保留一个模块', 2200, 'warn'); return; }
+        _mcpModSel.delete(k);
+      } else {
+        _mcpModSel.add(k);
+      }
+      renderMcpModules();
+      updateMcpToolMeta();                   // 摘要里的「未纳入契约」
+      if (_mcpTools) renderMcpToolPage(1);   // 工具清单跟着模块范围即时收窄/放宽
+    });
+  });
+}
+
+/** 当前选中的模块 key 数组（按模块目录顺序输出，保证请求稳定） */
+function pickedModules() {
+  const sel = _mcpModSel || new Set();
+  return (_mcpModules || []).filter(m => sel.has(m.key)).map(m => m.key);
+}
+
+/** 发现结果回显：每个模块一行，便于核对本次发现范围 */
+function fmtModuleLines(d) {
+  return (d.selectedStats || []).map(s => `  · ${s.label}（${s.key}）：${s.count} 个工具`).join('\n');
 }
 
 /* 接口路径里的 :param 高亮，并在 / 之后加换行点（长路径按段折行，不从单词中间断开）
@@ -539,32 +646,69 @@ function toolIfaceCell(tool) {
   return tool ? '<code>' + esc(tool) + '</code>' : '<span class="mcp-none">—</span>';
 }
 
+/** 契约工具中属于「当前选中模块」的那部分（前端过滤，切换模块即时生效）
+ *  多模块合并时按模块目录顺序分组、组内按工具名排序，避免各模块工具交叉穿插。 */
+function mcpToolsInScope() {
+  const all = _mcpTools || [];
+  const sel = _mcpModSel;
+  if (!sel || !sel.size) return all;
+  const order = (_mcpModules || []).map(m => m.key);
+  const rank = k => { const i = order.indexOf(k); return i < 0 ? order.length : i; };
+  return all
+    .filter(t => sel.has(t.module || 'other'))
+    .slice()
+    .sort((a, b) => rank(a.module || 'other') - rank(b.module || 'other') ||
+      String(a.name).localeCompare(String(b.name)));
+}
+
 function renderMcpToolPage(page) {
   const box = $('#mcpToolTable');
   if (!box || !_mcpTools) return;
-  const total = _mcpTools.length;
+  const view = mcpToolsInScope();
+  const total = view.length;
   const pages = Math.max(1, Math.ceil(total / MCP_TOOL_PAGE_SIZE));
   _mcpToolPage = Math.min(Math.max(1, page || 1), pages);
   const start = (_mcpToolPage - 1) * MCP_TOOL_PAGE_SIZE;
-  const rows = _mcpTools.slice(start, start + MCP_TOOL_PAGE_SIZE);
+  const rows = view.slice(start, start + MCP_TOOL_PAGE_SIZE);
+  const miss = pickedModules().filter(k => !_mcpTools.some(t => (t.module || 'other') === k));
+  // 多模块合并时按模块插分组小标题（单模块不插，保持原有 10 行/页的紧凑观感）
+  const modCount = [...new Set(view.map(t => t.module || 'other'))];
+  const grouped = modCount.length > 1;
+  let lastMod = null;
+  const empty = total === 0
+    ? '<tr><td colspan="6" class="ta-c mcp-none" style="padding:26px 0">' +
+      (miss.length
+        ? `选中模块（${esc(miss.map(m => moduleLabel(m)).join('、'))}）尚未纳入契约，请点上方「发现并导出契约」。`
+        : '当前模块下没有工具。') + '</td></tr>'
+    : '';
   box.innerHTML =
     '<table class="dt dt-tools"><thead><tr>' +
     '<th class="ta-c" style="width:52px">#</th>' +
-    '<th style="width:290px">工具名称（MCP Tool）</th>' +
-    '<th style="width:352px">接口名称</th>' +
+    '<th style="width:96px">模块</th>' +
+    '<th style="width:286px">工具名称（MCP Tool）</th>' +
+    '<th style="width:336px">接口名称</th>' +
     '<th>工具说明</th>' +
-    '<th style="width:200px">必填参数</th>' +
+    '<th style="width:186px">必填参数</th>' +
     '</tr></thead><tbody>' +
-    rows.map((t, i) =>
-      '<tr><td class="ta-c">' + (start + i + 1) + '</td>' +
-      '<td><code class="mcp-tool-name" data-copy="' + esc(t.name) + '" ' +
-      'title="完整 MCP Tool 名：' + esc(t.name) + '（点击复制）">' + esc(t.name) + '</code></td>' +
-      '<td>' + mcpApiCell(t) + '</td>' +
-      '<td class="mcp-tool-desc">' + esc(t.description || '—') + '</td>' +
-      '<td>' + ((t.required || []).length
-        ? t.required.map(r => '<span class="env-chip">' + esc(r) + '</span>').join(' ')
-        : '<span class="mcp-none">无</span>') + '</td></tr>'
-    ).join('') +
+    (empty || rows.map((t, i) => {
+      const mk = t.module || 'other';
+      let head = '';
+      if (grouped && mk !== lastMod) {
+        lastMod = mk;
+        head = '<tr class="mod-group"><td colspan="6">' +
+          '<span class="mod-tag">' + esc(t.moduleLabel || moduleLabel(mk) || '—') + '</span>' +
+          '<em>' + view.filter(x => (x.module || 'other') === mk).length + ' 个工具</em></td></tr>';
+      }
+      return head + '<tr><td class="ta-c">' + (start + i + 1) + '</td>' +
+        '<td><span class="mod-tag">' + esc(t.moduleLabel || moduleLabel(t.module) || '—') + '</span></td>' +
+        '<td><code class="mcp-tool-name" data-copy="' + esc(t.name) + '" ' +
+        'title="完整 MCP Tool 名：' + esc(t.name) + '（点击复制）">' + esc(t.name) + '</code></td>' +
+        '<td>' + mcpApiCell(t) + '</td>' +
+        '<td class="mcp-tool-desc">' + esc(t.description || '—') + '</td>' +
+        '<td>' + ((t.required || []).length
+          ? t.required.map(r => '<span class="env-chip">' + esc(r) + '</span>').join(' ')
+          : '<span class="mcp-none">无</span>') + '</td></tr>';
+    }).join('')) +
     '</tbody></table>' + mcpPager('mtp', _mcpToolPage, pages, total, rows.length);
 }
 
@@ -1049,25 +1193,52 @@ async function mcpAction(btn, outSel, fn, after) {
 function bindMcpEvents() {
   const on = (sel, fn) => { const el = $(sel); if (el) el.addEventListener('click', fn); };
 
+  /* 模块快捷操作：全选（仅含有工具的模块） / 只选制品库（历史默认范围） */
+  const applyMods = () => {
+    renderMcpModules();
+    updateMcpToolMeta();
+    if (_mcpTools) renderMcpToolPage(1);
+  };
+
+  on('#mcpModAll', () => {
+    _mcpModSel = new Set((_mcpModules || []).filter(m => m.count).map(m => m.key));
+    applyMods();
+  });
+
+  on('#mcpModDefault', () => {
+    const has = (_mcpModules || []).some(m => m.key === 'armory' && m.count);
+    const first = (_mcpModules || []).find(m => m.count) || {};
+    _mcpModSel = new Set([has ? 'armory' : first.key].filter(Boolean));
+    applyMods();
+  });
+
   on('#btnMcpDiscover', () => mcpAction($('#btnMcpDiscover'), '#mcpOutContract',
     async () => {
-      const d = await post('/api/mcp/discover');
+      const d = await post('/api/mcp/discover', { modules: pickedModules() });
       loadMcpStatus(); loadMcpTools();
       return d;
     },
     d => {
       const out = $('#mcpOutContract');
+      const lines = fmtModuleLines(d);
       out.hidden = false;
-      out.textContent = `契约发现完成：工具总数 ${d.toolCount}（armory ${d.armoryToolCount} 个）\n` + fmtDiff(d.diff);
-      toast('契约发现完成：' + d.armoryToolCount + ' 个 armory 工具', 2600, 'ok');
+      out.textContent =
+        `契约发现完成：本次范围 ${(d.modules || []).length} 个模块 / ${d.toolCount} 个工具` +
+        `（网关全量 ${d.gatewayToolCount || d.toolCount} 个）\n` +
+        (lines ? lines + '\n' : '') + fmtDiff(d.diff);
+      toast('契约发现完成：' + (d.modules || []).length + ' 个模块 / ' + d.toolCount + ' 个工具', 2600, 'ok');
     }));
 
   on('#btnMcpDiffQuick', () => mcpAction($('#btnMcpDiffQuick'), '#mcpOutContract',
-    () => post('/api/mcp/diff'),
+    () => post('/api/mcp/diff', { modules: pickedModules() }),
     d => {
       const out = $('#mcpOutContract');
+      const lines = fmtModuleLines(d);
       out.hidden = false;
-      out.textContent = fmtDiff(d.diff) + (d.baselineTime ? `\n（基线：${d.baselineTime}）` : '');
+      out.textContent =
+        `Diff 范围：${(d.modules || []).length} 个模块 / ${d.currentCount} 个工具\n` +
+        (lines ? lines + '\n' : '') + fmtDiff(d.diff) +
+        (d.baselineTime ? `\n（基线：${d.baselineTime}）` : '');
     }));
 
   on('#btnMcpGenParams', () => mcpAction($('#btnMcpGenParams'), '#mcpOutParams',
@@ -1111,16 +1282,21 @@ function bindMcpEvents() {
     }));
 
   on('#btnMcpRegression', () => mcpAction($('#btnMcpRegression'), '#mcpOutRun',
-    () => post('/api/mcp/regression'),
+    async () => {
+      if (!_mcpModules) await loadMcpModules();   // 回归按「当前选中模块」发现，需先有模块目录
+      return post('/api/mcp/regression', { modules: pickedModules() });
+    },
     d => {
       const s = d.summary || {};
       const out = $('#mcpOutRun');
       out.hidden = false;
       const rp = (d.steps && d.steps.runParams) || {};
       const rs = (d.steps && d.steps.runScenarios) || {};
+      const dsc = (d.steps && d.steps.discover) || {};
+      const dm = (dsc.modules || []).map(m => moduleLabel(m)).join('、');
       out.textContent = [
         `一键回归完成：${s.passed}/${s.total} 通过（失败 ${s.failed || 0}）`,
-        `· 契约发现：armory 工具 ${(d.steps && d.steps.discover && d.steps.discover.toolCount) || 0} 个`,
+        `· 契约发现：${dsc.toolCount || 0} 个工具${dm ? `（模块：${dm}）` : ''}`,
         `· 参数级 4a：${rp.passedCount || 0}/${rp.total || 0}，耗时 ${rp.wallMs || rp.durationMs || 0} ms`,
         `· 场景级 4b：${rs.passed || 0}/${rs.total || 0}`,
         `· Schema Diff：${(fmtDiff(s.schemaDiff || {})).split('\n')[0]}`,
